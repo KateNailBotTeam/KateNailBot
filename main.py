@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command
 
 from config import BOT_TOKEN
@@ -12,11 +12,13 @@ dp = Dispatcher()
 
 @dp.message(CommandStart())
 async def handle_start(message: types.Message):
-    await message.bot.send_message(
-        chat_id=message.chat.id,
-        text=f"Привет {message.from_user.full_name}! Меня зовут Катя и здесь ты сможешь записаться ко мне на маникюр",
-        reply_to_message_id=message.message_id
-    )
+    inline_kb = [
+        [types.InlineKeyboardButton(text="📅 Записаться", callback_data="book")],
+        [types.InlineKeyboardButton(text="📝 Мои записи", callback_data="my_bookings")],
+        [types.InlineKeyboardButton(text="📆 Расписание", callback_data="schedule")],
+    ]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=inline_kb)
+    await message.answer("Выберите действие:", reply_markup=keyboard)
 
 @dp.message(Command("help"))
 async def handle_help(message: types.Message):
@@ -57,11 +59,22 @@ async def handle_help(message: types.Message):
     """
     await message.answer(text=help_text)
 
-
 @dp.message()
 async def echo_message(message: types.Message):
     await message.copy_to(chat_id=message.chat.id)
 
+
+@dp.callback_query(F.data == 'book')
+async def book(callback: types.CallbackQuery):
+    await callback.message.answer(text='Тут будет логика бронирования')
+
+@dp.callback_query(F.data == 'my_bookings')
+async def my_bookings(callback: types.CallbackQuery):
+    await callback.message.answer(text='Мои бронирования : ...')
+
+@dp.callback_query(F.data == 'show_schedule')
+async def show_schedule(callback: types.CallbackQuery):
+    await callback.message.answer(text='Тут должен быть календарь с расписанием сеансов')
 
 async def main():
     logging.basicConfig(level=logging.DEBUG)
