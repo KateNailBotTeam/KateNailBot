@@ -11,6 +11,7 @@ class Settings(BaseSettings):
         case_sensitive=False
     )
     BOT_TOKEN: str = os.getenv("BOT_TOKEN")
+    admin_ids: frozenset[int] = frozenset((468880541,))
 
 
 settings = Settings()
