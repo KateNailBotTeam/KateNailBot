@@ -20,6 +20,7 @@ async def handle_start(message: types.Message):
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=inline_kb)
     await message.answer("Выберите действие:", reply_markup=keyboard)
 
+
 @dp.message(Command("help"))
 async def handle_help(message: types.Message):
     help_text = """
@@ -59,22 +60,28 @@ async def handle_help(message: types.Message):
     """
     await message.answer(text=help_text)
 
+
 @dp.message()
 async def echo_message(message: types.Message):
     await message.copy_to(chat_id=message.chat.id)
 
 
-@dp.callback_query(F.data == 'book')
+@dp.callback_query(F.data == "book")
 async def book(callback: types.CallbackQuery):
-    await callback.message.answer(text='Тут будет логика бронирования')
+    await callback.message.answer(text="Тут будет логика бронирования")
 
-@dp.callback_query(F.data == 'my_bookings')
+
+@dp.callback_query(F.data == "my_bookings")
 async def my_bookings(callback: types.CallbackQuery):
-    await callback.message.answer(text='Мои бронирования : ...')
+    await callback.message.answer(text="Мои бронирования : ...")
 
-@dp.callback_query(F.data == 'show_schedule')
+
+@dp.callback_query(F.data == "show_schedule")
 async def show_schedule(callback: types.CallbackQuery):
-    await callback.message.answer(text='Тут должен быть календарь с расписанием сеансов')
+    await callback.message.answer(
+        text="Тут должен быть календарь с расписанием сеансов"
+    )
+
 
 async def main():
     logging.basicConfig(level=logging.DEBUG)
