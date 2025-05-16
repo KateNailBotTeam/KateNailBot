@@ -23,3 +23,4 @@ async def handle_help(message: Message):
 @router.message(Command("book"))
 async def book(message: Message):
     await message.answer(text='Управление записями', reply_markup=create_book_main_menu())
+
