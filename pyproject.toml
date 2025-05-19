@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "katenailbot"
+version = "0.1.0"
+description = "Telegram bot for clients and nail master"
+authors = ["Win.freez <Win.freez@yandex.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12"
+aiogram = "^3.20.0.post0"
+aiofiles = "^24.1.0"
+python-dotenv = "^1.1.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
