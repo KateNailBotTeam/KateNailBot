@@ -12,8 +12,54 @@ aiofiles = "^24.1.0"
 python-dotenv = "^1.1.0"
 
 [tool.poetry.group.dev.dependencies]
-black = "^25.1.0"
+ruff = "^0.11.10"
+pre-commit = "^4.2.0"
+mypy = "^1.15.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle (ошибки)
+    "F", # Pyflakes (базовые проверки)
+    "W", # pycodestyle (предупреждения)
+    "UP", # pyupgrade (автоматическое обновление синтаксиса)
+    "I", # isort (сортировка импортов)
+    "S", # flake8-bandit (безопасность)
+    "N", # PEP8-naming
+    "RUF", # Ruff-специфичные правила
+    "ASYNC", # Асинхронные ошибки
+    "B", # flake8-bugbear (доп. проверки)
+    "PL", # Pylint (стиль и ошибки)
+    "SIM", # Упрощение кода
+    "PTH", # Использование pathlib вместо os.path
+    "LOG", # Проверка логирования
+    "ARG", # Неиспользуемые аргументы
+    "ANN", # Аннотации типов
+    "TRY", # Обработка исключений (tryceratops)
+]
+ignore = [
+    "E501", # Длина строки (уже контролируется форматтером)
+    "F401", # Неиспользуемый импорт (если нужно для __init__.py)
+    "PLR0913", # Слишком много аргументов (может мешать в хэндлерах)
+    "ANN101", # Аннотации для self/cls (не всегда нужно)
+    "D", # pydocstyle (если не нужна проверка докстрингов)
+]
+
+[tool.ruff.format]
+indent-style = "space"
+indent-width = 4
+quote-style = "double"
+line-ending = "auto"
+docstring-code-format = true
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"**/handlers/*.py" = ["PLR0913", "PLR0915"]
