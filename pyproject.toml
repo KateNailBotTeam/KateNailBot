@@ -10,11 +10,13 @@ python = ">=3.12"
 aiogram = "^3.20.0.post0"
 aiofiles = "^24.1.0"
 python-dotenv = "^1.1.0"
+pydantic-settings = "^2.9.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.11.10"
-pre-commit = "^4.2.0"
 mypy = "^1.15.0"
+pre-commit = "^4.2.0"
+black = "^25.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -22,6 +24,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 88
+indent-width = 4
 target-version = "py312"
 
 
@@ -39,13 +42,13 @@ select = [
     "B", # flake8-bugbear (доп. проверки)
     "PL", # Pylint (стиль и ошибки)
     "SIM", # Упрощение кода
-    "PTH", # Использование pathlib вместо os.path
     "LOG", # Проверка логирования
     "ARG", # Неиспользуемые аргументы
     "ANN", # Аннотации типов
     "TRY", # Обработка исключений (tryceratops)
 ]
 ignore = [
+    "RUF001", # Проверка на визуально похожие символы. (Ошибочно срабатывает на кириллице)
     "E501", # Длина строки (уже контролируется форматтером)
     "F401", # Неиспользуемый импорт (если нужно для __init__.py)
     "PLR0913", # Слишком много аргументов (может мешать в хэндлерах)
@@ -55,7 +58,6 @@ ignore = [
 
 [tool.ruff.format]
 indent-style = "space"
-indent-width = 4
 quote-style = "double"
 line-ending = "auto"
 docstring-code-format = true
@@ -63,3 +65,10 @@ docstring-code-format = true
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "**/handlers/*.py" = ["PLR0913", "PLR0915"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+disallow_untyped_decorators = false

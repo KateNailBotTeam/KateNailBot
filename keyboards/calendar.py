@@ -1,4 +1,5 @@
 import calendar
+
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 RU_MONTHS = {
@@ -24,13 +25,11 @@ def create_choose_month_keyboard(message: Message) -> InlineKeyboardMarkup:
     kb = [
         [
             InlineKeyboardButton(
-                text=f"📆 {RU_MONTHS[this_month]}",
-                callback_data=f"month_{this_month}"
+                text=f"📆 {RU_MONTHS[this_month]}", callback_data=f"month_{this_month}"
             ),
             InlineKeyboardButton(
-                text=f"➡️ {RU_MONTHS[next_month]}",
-                callback_data=f"month_{next_month}"
-            )
+                text=f"➡️ {RU_MONTHS[next_month]}", callback_data=f"month_{next_month}"
+            ),
         ]
     ]
 
@@ -43,41 +42,44 @@ def create_choose_day_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
 
     kb = []
 
-    kb.append([
-        InlineKeyboardButton(
-            text=f"📅 {RU_MONTHS.get(month, 'Нет данных')}",
-            callback_data="ignore"
-        )
-    ])
+    kb.append(
+        [
+            InlineKeyboardButton(
+                text=f"📅 {RU_MONTHS.get(month, 'Нет данных')}", callback_data="ignore"
+            )
+        ]
+    )
 
     weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-    kb.append([
-        InlineKeyboardButton(text=f"{day}", callback_data="ignore") for day in weekdays
-    ])
+    kb.append(
+        [
+            InlineKeyboardButton(text=f"{day}", callback_data="ignore")
+            for day in weekdays
+        ]
+    )
 
     for week in month_days:
         row = []
         for day in week:
             if day == 0:
-                row.append(InlineKeyboardButton(text=' ', callback_data="ignore"))
+                row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
             else:
-                row.append(InlineKeyboardButton(
-                    text=f"{day}",
-                    callback_data=f"day_{day}"
-                ))
+                row.append(
+                    InlineKeyboardButton(text=f"{day}", callback_data=f"day_{day}")
+                )
         kb.append(row)
 
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
 
-def create_choose_time_keyboard():
+def create_choose_time_keyboard() -> InlineKeyboardMarkup:
     kb = []
     for timeline in range(10, 22):
         kb.append(
             [
                 InlineKeyboardButton(
                     text=f"{timeline}:00 - {timeline + 1}:00",
-                    callback_data=f"timeline_{timeline}"
+                    callback_data=f"timeline_{timeline}",
                 )
             ]
         )
