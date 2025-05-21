@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
+
 from config import settings
 from routers import router
 from static import commands
