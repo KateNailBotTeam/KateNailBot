@@ -1,44 +1,23 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+  - repo: local
     hooks:
       - id: ruff
-        args: [ --fix ]
-        types_or: [ python, pyi ]
-        exclude: |
-          (?x)^(
-            .venv/|
-            __pycache__/|
-            .git/|
-            (^|/)config\.py|
-            .env|
-            poetry\.lock
-          )$
+        name: ruff (local)
+        entry: poetry run ruff
+        args: [--fix]
+        language: system
+        types: [python]
 
       - id: ruff-format
-        types_or: [ python, pyi ]
-        exclude: |
-          (?x)^(
-            .venv/|
-            __pycache__/|
-            .git/|
-            (^|/)config\.py|
-            .env|
-            poetry\.lock
-          )$
+        name: ruff-format (local)
+        entry: poetry run ruff format
+        language: system
+        types: [python]
 
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+  - repo: local
     hooks:
       - id: mypy
-        types_or: [ python, pyi ]
-        exclude: |
-          (?x)^(
-            .venv/|
-            __pycache__/|
-            .git/|
-            (^|/)config\.py|
-            .env|
-            poetry\.lock
-          )$
+        name: mypy (local)
+        entry: poetry run mypy
+        language: system
+        types: [python]
