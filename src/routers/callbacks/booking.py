@@ -3,7 +3,7 @@ from idlelib.window import add_windows_to_menu
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
 
-from keyboards.calendar import (
+from src.keyboards.calendar import (
     create_choose_day_keyboard,
     create_choose_month_keyboard,
     create_choose_time_keyboard,

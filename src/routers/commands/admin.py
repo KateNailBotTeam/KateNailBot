@@ -2,8 +2,8 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from config import settings
-from keyboards.admin import create_admin_keyboard
+from src.config import settings
+from src.keyboards.admin import create_admin_keyboard
 
 router = Router(name=__name__)
 

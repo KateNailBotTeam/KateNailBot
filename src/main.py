@@ -2,10 +2,8 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
-
 from config import settings
 from routers import router
-from routers.callbacks.booking import router as callbacks_router
 from static import commands
 
 

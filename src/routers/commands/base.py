@@ -3,9 +3,9 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
-from keyboards.book import create_book_main_menu
-from keyboards.start import create_start_keyboard
-from texts.info_text import info_text
+from src.keyboards.book import create_book_main_menu
+from src.keyboards.start import create_start_keyboard
+from src.texts.info_text import info_text
 
 router = Router(name=__name__)
 
