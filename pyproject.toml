@@ -17,6 +17,9 @@ ruff = "^0.11.10"
 mypy = "^1.15.0"
 pre-commit = "^4.2.0"
 black = "^25.1.0"
+pytest = "^8.3.5"
+pytest-asyncio = "^0.26.0"
+pytest-cov = "^6.1.1"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -72,3 +75,11 @@ warn_unused_configs = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
 disallow_untyped_decorators = false
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+pythonpath = ". src"
+addopts = "--asyncio-mode=auto --cov=src --cov-report=term-missing"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["integration: mark a test as integration", "unit: mark a test as unit"]
