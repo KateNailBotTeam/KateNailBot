@@ -20,6 +20,7 @@ black = "^25.1.0"
 pytest = "^8.3.5"
 pytest-asyncio = "^0.26.0"
 pytest-cov = "^6.1.1"
+packaging = "^25.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -52,10 +53,6 @@ select = [
 ]
 ignore = [
     "RUF001", # Проверка на визуально похожие символы. (Ошибочно срабатывает на кириллице)
-    "E501", # Длина строки (уже контролируется форматтером)
-    "F401", # Неиспользуемый импорт (если нужно для __init__.py)
-    "PLR0913", # Слишком много аргументов (может мешать в хэндлерах)
-    "ANN101", # Аннотации для self/cls (не всегда нужно)
     "D", # pydocstyle (если не нужна проверка докстрингов)
 ]
 
@@ -68,6 +65,8 @@ docstring-code-format = true
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "**/handlers/*.py" = ["PLR0913", "PLR0915"]
+"**/test_*.py" = ["S101", "PLR2004", "ANN"]
+"**/tests/**/*.py" = ["S101", "PLR2004", "ANN"]
 
 [tool.mypy]
 python_version = "3.12"
