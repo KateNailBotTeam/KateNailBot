@@ -12,17 +12,17 @@
 
 #### Клонировать репозиторий:
 
-* git clone https://github.com/KateNailBotTeam/KateNailBot
-* cd KateNailBot
+* `git clone https://github.com/KateNailBotTeam/KateNailBot`
+* `cd KateNailBot`
 
 #### Установить зависимости и активировать окружение:
 
-* poetry install
-* poetry shell
+* `poetry install`
+* `poetry shell`
 
 #### Установить pre-commit хуки:
 
-* poetry run pre-commit install
+* `poetry run pre-commit install`
 
 
 ## Конфигурация
@@ -35,13 +35,13 @@
 ## Для запуска проверок вручную:
 
 #### Линтинг с авто-исправлениями
-* poetry run ruff check --fix .
+* `poetry run ruff check --fix .`
 
 #### Форматирование кода
-* poetry run ruff format .
+* `poetry run ruff format .`
 
 #### Проверка типов
-* poetry run mypy .
+* `poetry run mypy .`
 
 ## Автоматические проверки при коммитах
 
@@ -52,4 +52,50 @@
 * mypy
 
 #### Для запуска всех проверок вручную на всех файлах:
-* poetry run pre-commit run --all-files
+* `poetry run pre-commit run --all-files`
+
+
+# Тестирование проекта и обеспечение качества кода
+
+### В проекте используется pytest с поддержкой асинхронных тестов (pytest-asyncio) и измерением покрытия кода (pytest-cov).
+
+#### Все тесты находятся в директории tests, и разделены на
+* **Unit-тесты**: покрывают бизнес-логику, хендлеры и вспомогательные функции.
+* **Моки Telegram API**: реальные запросы в Telegram не выполняются — все методы заменены на AsyncMock.
+* В дальнейшем планируется добавить **интеграционные тесты**, которые будут взаимодействовать с внешними сервисами и БД.
+
+### Фикстуры
+* Используются фикстуры pytest для моков сообщений, обновлений, методов бота и диспетчера. Это позволяет писать простые и изолированные тесты хендлеров без зависимости от Telegram API или реального состояния.
+
+## Ручной запуск проверок pytest
+
+#### Убедитесь что установлены зависимости и активировано окружение:
+* `poetry install`
+* `poetry shell`
+
+#### Убедитесь что установлены pre-commit хуки:
+* `poetry run pre-commit install`
+
+### Ручной запуск тестов производится командой
+* `poetry run pytest`
+
+#### По умолчанию используется следующие настройки:
+* Путь к исходному коду: src
+* Каталог с тестами: tests
+* Режим asyncio: auto
+* Отчёт о покрытии: --cov=src --cov-report=term-missing
+* Scope событийного цикла: module (один loop на файл)
+
+#### Фильтрация по маркерам
+* Запустить только unit-тесты:
+`    poetry run pytest -m "unit"`
+* Исключить медленные тесты:
+`poetry run pytest -m "not slow"`
+* Только интеграционные тесты:
+`poetry run pytest -m "integration"`
+
+#### Для отображения покрытия кода
+* `poetry run pytest --cov=src --cov-report=term-missing`
+
+## Pre-commit хуки
+Чтобы код автоматически проверялся с помощью pytest перед коммитом, в проекте настроен pre-commit хук **pytest (local)**

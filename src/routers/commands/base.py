@@ -24,7 +24,6 @@ async def handle_info(message: Message) -> None:
 
 @router.message(Command("book"))
 async def book(message: Message) -> None:
-    if isinstance(message, Message):
-        await message.answer(
-            text="Управление записями", reply_markup=create_book_main_menu()
-        )
+    await message.answer(
+        text="Управление записями", reply_markup=create_book_main_menu()
+    )
