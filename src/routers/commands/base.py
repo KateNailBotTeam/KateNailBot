@@ -12,12 +12,14 @@ router = Router(name=__name__)
 
 @router.message(CommandStart())
 async def handle_start(message: Message) -> None:
-    await message.answer("Выберите действие:", reply_markup=create_start_keyboard())
+    if isinstance(message, Message):
+        await message.answer("Выберите действие:", reply_markup=create_start_keyboard())
 
 
 @router.message(Command("info"))
-async def handle_help(message: Message) -> None:
-    await message.answer(text=info_text, parse_mode=ParseMode.HTML)
+async def handle_info(message: Message) -> None:
+    if isinstance(message, Message):
+        await message.answer(text=info_text, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("book"))
