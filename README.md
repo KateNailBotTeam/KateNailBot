@@ -96,6 +96,3 @@
 
 #### Для отображения покрытия кода
 * `poetry run pytest --cov=src --cov-report=term-missing`
-
-## Pre-commit хуки
-Чтобы код автоматически проверялся с помощью pytest перед коммитом, в проекте настроен pre-commit хук **pytest (local)**
