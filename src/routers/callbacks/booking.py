@@ -1,5 +1,5 @@
 from aiogram import F, Router
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 from src.keyboards.calendar import (
     create_choose_day_keyboard,
@@ -12,35 +12,40 @@ router = Router(name=__name__)
 
 @router.callback_query(F.data == "book")
 async def book(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(
-        text="Выберите месяц для записи",
-        reply_markup=create_choose_month_keyboard(message=callback.message),
-    )
+    if isinstance(callback.message, Message):
+        await callback.message.edit_text(
+            text="Выберите месяц для записи",
+            reply_markup=create_choose_month_keyboard(message=callback.message),
+        )
 
 
 @router.callback_query(F.data.regexp(r"^month_(1[0-2]|[1-9])$"))
 async def show_month(callback: CallbackQuery) -> None:
-    keyboard = create_choose_day_keyboard(
-        year=callback.message.date.year, month=int(callback.data.split("_")[-1])
-    )
-    await callback.message.edit_text(text="Выберете день", reply_markup=keyboard)
+    if isinstance(callback.message, Message) and isinstance(callback.data, str):
+        keyboard = create_choose_day_keyboard(
+            year=callback.message.date.year, month=int(callback.data.split("_")[-1])
+        )
+        await callback.message.edit_text(text="Выберете день", reply_markup=keyboard)
 
 
 @router.callback_query(F.data.regexp(r"^day_(\d{1,2})$"))
 async def show_day(callback: CallbackQuery) -> None:
-    # day = int(callback.data.split('_')[-1])
-    await callback.message.edit_text(
-        text="Выберете удобное время", reply_markup=create_choose_time_keyboard()
-    )
+    if isinstance(callback.message, Message):
+        # day = int(callback.data.split('_')[-1])
+        await callback.message.edit_text(
+            text="Выберете удобное время", reply_markup=create_choose_time_keyboard()
+        )
 
 
 @router.callback_query(F.data == "my_bookings")
 async def my_bookings(callback: CallbackQuery) -> None:
-    await callback.message.answer(text="Мои бронирования : ...")
+    if isinstance(callback.message, Message):
+        await callback.message.answer(text="Мои бронирования : ...")
 
 
 @router.callback_query(F.data == "show_schedule")
 async def show_schedule(callback: CallbackQuery) -> None:
-    await callback.message.answer(
-        text="Тут должен быть календарь с расписанием сеансов"
-    )
+    if isinstance(callback.message, Message):
+        await callback.message.answer(
+            text="Тут должен быть календарь с расписанием сеансов"
+        )

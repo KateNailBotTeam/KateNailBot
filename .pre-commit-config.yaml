@@ -5,13 +5,13 @@ repos:
         name: ruff (local)
         entry: poetry run ruff check --fix
         language: system
-        types: [python]
+        types: [ python ]
 
       - id: ruff-format
         name: ruff-format (local)
         entry: poetry run ruff format
         language: system
-        types: [python]
+        types: [ python ]
 
   - repo: local
     hooks:
@@ -19,4 +19,5 @@ repos:
         name: mypy (local)
         entry: poetry run mypy
         language: system
-        types: [python]
+        types: [ python ]
+        exclude: "^tests/"
