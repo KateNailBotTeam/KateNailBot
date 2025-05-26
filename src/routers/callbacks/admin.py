@@ -1,5 +1,5 @@
 from aiogram import F, Router
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 from src.keyboards.change_schedule import create_change_schedule_keyboard
 
@@ -8,7 +8,7 @@ router = Router(name=__name__)
 
 @router.callback_query(F.data == "change_schedule")
 async def change_schedule(callback: CallbackQuery) -> None:
-    if isinstance(callback, CallbackQuery):
+    if isinstance(callback.message, Message) and isinstance(callback.message.text, str):
         await callback.message.edit_text(
             text=callback.message.text, reply_markup=create_change_schedule_keyboard()
         )
