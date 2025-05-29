@@ -99,9 +99,20 @@
 
 
 # Docker Compose для KateNailBot
-### Настройка и запуск
-* Установите Docker и Docker Compose
-* Создайте файл .env в корне проекта с необходимыми переменными окружения
+## Настройка и запуск
+#### 1. Установите Docker и Docker Compose
+**Для Linux (Ubuntu/Debian)**
+1. Установка Docker Engine:
+* `sudo apt-get update`
+* `sudo apt-get install docker.io`
+* `sudo systemctl enable --now docker`
+2. Установка Docker Compose:
+* `sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose`
+* `sudo chmod +x /usr/local/bin/docker-compose`
+3. Проверка установки:
+* `docker-compose --version`
+
+#### 2. Создайте файл .env в корне проекта с необходимыми переменными окружения
 
 ### Доступные сервисы
 #### Проект включает два основных сервиса:
