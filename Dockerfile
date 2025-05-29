@@ -1,5 +1,7 @@
 FROM python:3.12-slim
 
+LABEL author="Win.freez"
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 

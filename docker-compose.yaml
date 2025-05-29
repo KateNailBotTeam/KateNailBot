@@ -1,0 +1,20 @@
+services:
+  bot:
+    build: .
+    image: telegram-bot-image:0.0.1
+    container_name: telegram-bot-container
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  tests:
+    build: .
+    image: telegram-bot-image:0.0.1
+    container_name: test-bot-container
+    command: ["poetry", "run", "pytest"]
+    volumes:
+      - .:/app
+    env_file:
+      - .env
