@@ -9,8 +9,14 @@ services:
     env_file:
       - .env
     networks:
-      -backend
+      - backend
     restart: unless-stopped
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer-container
+    ports:
+      - "8080:8080"
 
   bot:
     build: .

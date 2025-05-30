@@ -11,6 +11,8 @@ aiogram = "^3.20.0.post0"
 aiofiles = "^24.1.0"
 python-dotenv = "^1.1.0"
 pydantic-settings = "^2.9.1"
+sqlalchemy = "^2.0.41"
+asyncpg = "^0.30.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.11.10"
@@ -74,6 +76,10 @@ ignore_missing_imports = true
 disallow_untyped_defs = true
 disallow_untyped_decorators = false
 exclude = "^tests/"
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_typed = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
