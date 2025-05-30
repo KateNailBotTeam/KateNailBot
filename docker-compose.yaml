@@ -1,4 +1,17 @@
 services:
+  db:
+    image: postgres:17-alpine
+    container_name: postgres-container
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    networks:
+      -backend
+    restart: unless-stopped
+
   bot:
     build: .
     image: telegram-bot-image:0.0.1
@@ -7,14 +20,30 @@ services:
       - .:/app
     env_file:
       - .env
+    depends_on:
+      - db
+    networks:
+      - backend
     restart: unless-stopped
 
   tests:
     build: .
     image: telegram-bot-image:0.0.1
     container_name: test-bot-container
-    command: ["poetry", "run", "pytest"]
+    command: [ "poetry", "run", "pytest" ]
     volumes:
       - .:/app
+    depends_on:
+      - db
     env_file:
       - .env
+    networks:
+      - backend
+
+volumes:
+  db-data:
+
+networks:
+  backend:
+    driver: bridge
+
