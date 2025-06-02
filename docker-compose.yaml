@@ -20,7 +20,6 @@ services:
 
   bot:
     build: .
-    image: telegram-bot-image:0.0.1
     container_name: telegram-bot-container
     volumes:
       - .:/app
@@ -33,8 +32,9 @@ services:
     restart: unless-stopped
 
   tests:
-    build: .
-    image: telegram-bot-image:0.0.1
+    build:
+      context: ./
+      dockerfile: Dockerfile
     container_name: test-bot-container
     command: [ "poetry", "run", "pytest" ]
     volumes:
