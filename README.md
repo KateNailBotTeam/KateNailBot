@@ -96,3 +96,50 @@
 
 #### Для отображения покрытия кода
 * `poetry run pytest --cov=src --cov-report=term-missing`
+
+
+# Docker Compose для KateNailBot
+
+#### Команды для работы
+Сборка и запуск:
+* `docker compose up -d`
+
+Собрать и запустить только бота:
+* `docker compose up -d bot`
+
+Остановить все сервисы: 
+* `docker compose down`
+
+Остановить с удалением volumes:
+* `docker compose down -v`
+
+Просмотр логов бота:
+* `docker compose logs -f bot`
+
+Просмотр логов тестов
+* `docker compose logs -f tests`
+
+Запустить тесты (сервис tests автоматически останавливается после выполнения)
+* `docker compose run --rm tests`
+
+### Настройка окружения
+* Скопируйте .env.example в .env
+
+
+### Рекомендации по разработке
+* Для разработки использовать:
+`docker compose up -d bot`
+
+* Перед коммитом запускать тесты:
+`docker compose run --rm tests`
+
+### Если возникают проблемы с зависимостями, необходимо:
+
+* Удалить контейнеры и volumes:
+`docker compose down -v`
+
+* Пересобрать образы:
+`docker compose build --no-cache`
+
+* Запустить заново:
+`docker compose up -d`
