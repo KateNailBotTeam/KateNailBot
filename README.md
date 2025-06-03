@@ -99,48 +99,28 @@
 
 
 # Docker Compose для KateNailBot
-## Настройка и запуск
-#### 1. Установите Docker и Docker Compose
-**Для Linux (Ubuntu/Debian)**
-1. Установка Docker Engine:
-* `sudo apt-get update`
-* `sudo apt-get install docker.io`
-* `sudo systemctl enable --now docker`
-2. Установка Docker Compose:
-* `sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose`
-* `sudo chmod +x /usr/local/bin/docker-compose`
-3. Проверка установки:
-* `docker-compose --version`
-
-#### 2. Создайте файл .env в корне проекта с необходимыми переменными окружения
-
-### Доступные сервисы
-#### Проект включает два основных сервиса:
-
-* Основной бот (bot)
-* Тесты (tests)
 
 #### Команды для работы
 Сборка и запуск:
-* `docker-compose up -d`
+* `docker compose up -d`
 
 Собрать и запустить только бота:
-* `docker-compose up -d bot`
+* `docker compose up -d bot`
 
 Остановить все сервисы: 
-* `docker-compose down`
+* `docker compose down`
 
 Остановить с удалением volumes:
-* `docker-compose down -v`
+* `docker compose down -v`
 
 Просмотр логов бота:
-* `docker-compose logs -f bot`
+* `docker compose logs -f bot`
 
 Просмотр логов тестов
-* `docker-compose logs -f tests`
+* `docker compose logs -f tests`
 
 Запустить тесты (сервис tests автоматически останавливается после выполнения)
-* `docker-compose run --rm tests`
+* `docker compose run --rm tests`
 
 ### Настройка окружения
 * Скопируйте .env.example в .env
@@ -148,26 +128,20 @@
 * Заполните необходимые переменные:
 TELEGRAM_BOT_TOKEN - токен Telegram бота
 
-### Особенности работы
-
-1. Hot-reload: Благодаря volume-монтированию (.:/app), изменения в коде сразу применяются в контейнере
-2. Автоперезапуск: Сервис бота автоматически перезапускается при падении (restart: unless-stopped)
-3. Тестирование: Сервис тестов использует ту же кодовую базу, но запускает pytest через Poetry
-
 ### Рекомендации по разработке
 * Для разработки использовать:
-`docker-compose up -d bot`
+`docker compose up -d bot`
 
 * Перед коммитом запускать тесты:
-`docker-compose run --rm tests`
+`docker compose run --rm tests`
 
 ### Если возникают проблемы с зависимостями, необходимо:
 
 * Удалить контейнеры и volumes:
-`docker-compose down -v`
+`docker compose down -v`
 
 * Пересобрать образы:
-`docker-compose build --no-cache`
+`docker compose build --no-cache`
 
 * Запустить заново:
-`docker-compose up -d`
+`docker compose up -d`
