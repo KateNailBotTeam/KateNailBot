@@ -11,7 +11,7 @@ class User(Base):
     username: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    phone: Mapped[str] = mapped_column(String(20), nullable=True, unique=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True, unique=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     __table_args__ = (
