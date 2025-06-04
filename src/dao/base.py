@@ -15,7 +15,7 @@ class BaseDAO:
 
     async def add(self, session: AsyncSession, obj: Base) -> object:
         session.add(obj)
-        await session.commit()
+        await session.flush()
         await session.refresh(obj)
         return obj
 
@@ -28,7 +28,7 @@ class BaseDAO:
         for k, v in new_data.items():
             setattr(obj, k, v)
 
-        await session.commit()
+        await session.flush()
         await session.refresh(obj)
         return obj
 
@@ -37,5 +37,5 @@ class BaseDAO:
         if not obj:
             return False
         await session.delete(obj)
-        await session.commit()
+        await session.flush()
         return True
