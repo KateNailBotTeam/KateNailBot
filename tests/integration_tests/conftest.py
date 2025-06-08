@@ -1,24 +1,25 @@
 # ruff: noqa: ARG001
-
 import asyncio
+import os
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.database import get_engine, get_session_factory
+from database.database import engine, session_factory
 from src.models.base import Base
 
+os.environ["MODE"] = "TEST"
 
-@pytest.fixture(scope="session")
+
+@pytest.fixture(scope="session", autouse=True)
 def event_loop():
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 async def prepare_database():
-    engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -28,9 +29,7 @@ async def prepare_database():
 
 @pytest.fixture
 async def session(prepare_database) -> AsyncSession:
-    engine = get_engine()
-    factory = get_session_factory(engine)
-    async with factory() as session:
+    async with session_factory() as session:
         try:
             yield session
             await session.commit()
@@ -38,6 +37,4 @@ async def session(prepare_database) -> AsyncSession:
             await session.rollback()
             raise
         finally:
-            async with engine.begin() as conn:
-                for table in reversed(Base.metadata.sorted_tables):
-                    await conn.execute(table.delete())
+            await session.rollback()

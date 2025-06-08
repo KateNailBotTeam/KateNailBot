@@ -173,7 +173,7 @@ async def test_get_user_by_id(
     )
     dao = UserDAO()
 
-    created_user = await dao.add(user)
+    created_user = await dao.add(session=session, obj=user)
     get_user = await dao.get(session=session, obj_id=created_user.id)
 
     assert get_user is not None, "User not found"
