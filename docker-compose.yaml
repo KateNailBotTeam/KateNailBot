@@ -1,24 +1,7 @@
 services:
-  db:
-    image: postgres:17-alpine
-    container_name: postgres-container
-    volumes:
-      - db-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    env_file:
-      - .env
-    networks:
-      - backend
-    restart: unless-stopped
-
-  adminer:
-    image: adminer:latest
-    container_name: adminer-container
-    ports:
-      - "8080:8080"
-
   bot:
+    profiles:
+      - dev
     build: .
     container_name: telegram-bot-container
     volumes:
@@ -31,7 +14,25 @@ services:
       - backend
     restart: unless-stopped
 
+  db:
+    profiles:
+      - dev
+    image: postgres:17-alpine
+    container_name: postgres-container
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    networks:
+      - backend
+    restart: unless-stopped
+
+
   tests:
+    profiles:
+      - test
     build:
       context: ./
       dockerfile: Dockerfile
@@ -40,11 +41,23 @@ services:
     volumes:
       - .:/app
     depends_on:
-      - db
+      - db_test
     env_file:
       - .env
     networks:
       - backend
+
+  db_test:
+    profiles:
+      - test
+    env_file:
+      - .env
+    image: postgres:17-alpine
+    container_name: postgres-container-test
+    networks:
+      - backend
+
+
 
 volumes:
   db-data:

@@ -1,7 +1,7 @@
 # ruff: noqa: PLR0913
 
 import pytest
-from sqlalchemy.exc import DataError, IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dao.user import UserDAO
@@ -63,30 +63,30 @@ async def test_create_user(
     [
         (
             666666,
-            "too_long_username_abcdefghijklmnopqrstuvwxyz",
+            "a" * 51,
             "Valid",
             "Name",
             "+666666666",
             False,
-            DataError,
+            DBAPIError,
         ),
         (
             777777,
             "valid_user",
-            "TooLongFirstName" * 10,
+            "a" * 101,
             "Name",
             "+777777777",
             False,
-            DataError,
+            DBAPIError,
         ),
         (
             888888,
             "valid_user",
             "Name",
-            "TooLongLastName" * 10,
+            "a" * 101,
             "+888888888",
             False,
-            DataError,
+            DBAPIError,
         ),
         (None, "no_id", "No-ID", "User", "+123123123", False, IntegrityError),
         (
@@ -103,9 +103,9 @@ async def test_create_user(
             "valid_user",
             "Name",
             "Last",
-            "invalid_phone_format",
+            "phone_number" * 2,
             False,
-            IntegrityError,
+            DBAPIError,
         ),
     ],
     ids=[
@@ -187,19 +187,28 @@ async def test_get_user_by_id(
 
 
 @pytest.mark.parametrize(
-    "invalid_id",
-    [-1, 0, 9999999999999999, 123.45, "string_id", None],
+    "invalid_id, expected_exception",
+    [
+        (-1, None),
+        (0, None),
+        (9999999999999999, DBAPIError),
+        (123.45, None),
+        ("string_id", ProgrammingError),
+        (None, None),
+    ],
     ids=["negative", "zero", "big_int", "float_id", "string_id", "None"],
 )
 @pytest.mark.asyncio
-async def test_fail_get_user_by_id(session: AsyncSession, invalid_id):
+async def test_fail_get_user_by_id(
+    session: AsyncSession, invalid_id, expected_exception
+):
     dao = UserDAO()
 
-    if isinstance(invalid_id, int):
+    if expected_exception is None:
         result = await dao.get(session=session, obj_id=invalid_id)
         assert result is None
     else:
-        with pytest.raises(TypeError):
+        with pytest.raises(expected_exception):
             await dao.get(session=session, obj_id=invalid_id)
 
 

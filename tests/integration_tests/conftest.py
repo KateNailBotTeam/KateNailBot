@@ -3,6 +3,7 @@ import asyncio
 import os
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.database import engine, session_factory
@@ -30,11 +31,10 @@ async def prepare_database():
 @pytest.fixture
 async def session(prepare_database) -> AsyncSession:
     async with session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except:
-            await session.rollback()
-            raise
-        finally:
-            await session.rollback()
+        yield session
+
+
+@pytest.fixture(autouse=True)
+async def clean_users_table(session: AsyncSession):
+    await session.execute(text("DELETE FROM users"))
+    await session.commit()
