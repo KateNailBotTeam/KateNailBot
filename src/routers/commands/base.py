@@ -15,7 +15,7 @@ async def handle_start(message: Message) -> None:
     user = message.from_user
     if user:
         await message.answer(
-            text=f"Как к вам обращаться? Сейчас: {user.first_name}",
+            text=f"Как к вам обращаться?\nСейчас: {user.first_name}",
             reply_markup=start_keyboard(),
         )
     else:
