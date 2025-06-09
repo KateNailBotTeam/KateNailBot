@@ -1,7 +1,7 @@
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from aiogram.middlewares import BaseMiddleware
+from aiogram import BaseMiddleware
 from aiogram.types.base import TelegramObject
 
 from database.database import get_session
