@@ -1,14 +1,59 @@
 from aiogram import F, Router
-from aiogram.types import CallbackQuery
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, Message
+
+from src.keyboards.start import ask_about_phone
+from src.states.registration import RegistrationState
 
 router = Router(name=__name__)
 
 
 @router.callback_query(F.data == "profile_keep_name")
 async def keep_name(callback: CallbackQuery) -> None:
-    pass
+    if isinstance(callback.message, Message):
+        await callback.answer()
+        await ask_about_phone(callback.message)
 
 
 @router.callback_query(F.data == "profile_change_name")
-async def change_name(callback: CallbackQuery) -> None:
-    pass
+async def change_name(callback: CallbackQuery, state: FSMContext) -> None:
+    if isinstance(callback.message, Message):
+        await callback.answer()
+        await callback.message.edit_text("Введите новое имя:")
+        await state.set_state(RegistrationState.waiting_for_name)
+
+
+@router.message(RegistrationState.waiting_for_name)
+async def set_new_name(message: Message, state: FSMContext) -> None:
+    await state.update_data(first_name=message.text)
+    await ask_about_phone(message)
+
+
+@router.callback_query(F.data == "profile_add_phone")
+async def add_phone(callback: CallbackQuery, state: FSMContext) -> None:
+    if isinstance(callback.message, Message):
+        await callback.answer()
+        await callback.message.edit_text(text="Введите номер")
+        await state.set_state(RegistrationState.waiting_for_phone)
+
+
+@router.callback_query(F.data == "profile_skip_phone")
+async def skip_phone(callback: CallbackQuery, state: FSMContext) -> None:
+    if isinstance(callback.message, Message):
+        await callback.answer()
+        data = await state.get_data()
+        await finish_registration(callback.message, data)
+
+
+@router.message(RegistrationState.waiting_for_phone)
+async def save_phone(message: Message, state: FSMContext) -> None:
+    await state.update_data(phone=message.text)
+    data = await state.get_data()
+    await finish_registration(message, data)
+
+
+async def finish_registration(message: Message, data: dict) -> None:
+    await message.answer(
+        f"Вы зарегистрированы!\nИмя: {data.get('first_name')}\n"
+        f"Телефон: {data.get('phone', 'не указан')}"
+    )
