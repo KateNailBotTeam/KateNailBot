@@ -44,6 +44,15 @@ services:
       - db_test
     env_file:
       - .env
+    environment:
+      - POSTGRES_DB=db_test
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - DB_HOST=db_test
+      - DB_PORT=5432
+      - DB_NAME=db_test
+      - DB_USER=user
+      - DB_PASS=pass
     networks:
       - backend
 
@@ -52,6 +61,15 @@ services:
       - test
     env_file:
       - .env
+    environment:
+      - POSTGRES_DB=db_test
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - DB_HOST=db_test
+      - DB_PORT=5432
+      - DB_NAME=db_test
+      - DB_USER=user
+      - DB_PASS=pass
     image: postgres:17-alpine
     container_name: postgres-container-test
     networks:

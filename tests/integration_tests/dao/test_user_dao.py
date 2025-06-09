@@ -266,3 +266,53 @@ async def test_update_user(
     assert updated_user.id is not None
     assert updated_user.created_at is not None
     assert updated_user.updated_at is not None
+
+
+@pytest.mark.parametrize(
+    "telegram_id,"
+    " username,"
+    " first_name,"
+    " last_name,"
+    " phone,"
+    " is_admin,"
+    " delete_id,"
+    " test_result",
+    [
+        (7491685, "gordoneric", "James", "Holmes", None, False, None, True),
+        (1234567, "otheruser", "Alice", "Smith", "1234567890", False, None, True),
+        (9999999, "ghost", "Ghost", None, None, False, 999999999, False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_delete_user(
+    session: AsyncSession,
+    telegram_id: int,
+    username: str | None,
+    first_name: str,
+    last_name: str | None,
+    phone: str | None,
+    is_admin: bool,
+    delete_id: int | None,
+    test_result: bool,
+):
+    dao = UserDAO()
+    if delete_id is None:
+        user = User(
+            telegram_id=telegram_id,
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            is_admin=is_admin,
+        )
+        created_user = await dao.add(session=session, obj=user)
+        obj_id_to_delete = created_user.id
+    else:
+        obj_id_to_delete = delete_id
+
+    result = await dao.delete(session=session, obj_id=obj_id_to_delete)
+
+    assert result is test_result
+
+    user_after = await dao.get(session=session, obj_id=obj_id_to_delete)
+    assert user_after is None
