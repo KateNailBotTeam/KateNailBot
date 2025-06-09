@@ -4,7 +4,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
 from src.keyboards.book import create_book_main_menu
-from src.keyboards.start import create_start_keyboard
+from src.keyboards.start import start_keyboard
 from src.texts.info_text import info_text
 
 router = Router(name=__name__)
@@ -12,8 +12,14 @@ router = Router(name=__name__)
 
 @router.message(CommandStart())
 async def handle_start(message: Message) -> None:
-    if isinstance(message, Message):
-        await message.answer("Выберите действие:", reply_markup=create_start_keyboard())
+    user = message.from_user
+    if user:
+        await message.answer(
+            text=f"Как к вам обращаться? Сейчас: {user.first_name}",
+            reply_markup=start_keyboard(),
+        )
+    else:
+        await message.answer("Не удалось получить информацию о пользователе.")
 
 
 @router.message(Command("info"))

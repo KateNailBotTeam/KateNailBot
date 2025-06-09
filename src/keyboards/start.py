@@ -1,12 +1,12 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def create_start_keyboard() -> InlineKeyboardMarkup:
+def start_keyboard() -> InlineKeyboardMarkup:
     inline_kb = [
-        [InlineKeyboardButton(text="📅 Записаться", callback_data="book")],
-        [InlineKeyboardButton(text="📝 Мои записи", callback_data="my_bookings")],
-        [InlineKeyboardButton(text="📆 Расписание", callback_data="schedule")],
+        [InlineKeyboardButton(text="Оставить", callback_data="profile_keep_name")],
+        [InlineKeyboardButton(text="Изменить", callback_data="profile_change_name")],
     ]
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=inline_kb)
 
     return keyboard
