@@ -1,7 +1,7 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def ask_about_name() -> InlineKeyboardMarkup:
+def ask_about_name_kb() -> InlineKeyboardMarkup:
     inline_kb = [
         [
             InlineKeyboardButton(text="Оставить", callback_data="profile_keep_name"),
@@ -14,7 +14,7 @@ def ask_about_name() -> InlineKeyboardMarkup:
     return keyboard
 
 
-async def ask_about_phone(message: Message) -> None:
+def ask_about_phone_kb() -> InlineKeyboardMarkup:
     inline_kb = [
         [
             InlineKeyboardButton(text="Добавить", callback_data="profile_add_phone"),
@@ -23,4 +23,4 @@ async def ask_about_phone(message: Message) -> None:
     ]
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=inline_kb)
-    await message.answer("Добавить номер телефона", reply_markup=keyboard)
+    return keyboard

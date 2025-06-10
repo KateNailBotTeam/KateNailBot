@@ -10,6 +10,7 @@ services:
       - .env
     depends_on:
       - db
+      - redis
     networks:
       - backend
     restart: unless-stopped
@@ -29,6 +30,21 @@ services:
       - backend
     restart: unless-stopped
 
+  redis:
+    profiles:
+      - dev
+    image: redis:7.4-alpine
+    container_name: redis-container
+    env_file:
+      - .env
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:6379"
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    networks:
+      - backend
 
   tests:
     profiles:
@@ -79,6 +95,7 @@ services:
 
 volumes:
   db-data:
+  redis_data:
 
 networks:
   backend:

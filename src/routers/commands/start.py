@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from aiogram.utils import markdown
 
-from src.keyboards.start import ask_about_name
+from src.keyboards.start import ask_about_name_kb
 
 router = Router(name=__name__)
 
@@ -22,7 +22,7 @@ async def handle_start(message: Message, state: FSMContext) -> None:
         await message.answer(
             text=f"Как к вам обращаться?\nСейчас: "
             f"{markdown.hbold(message.from_user.first_name)}",
-            reply_markup=ask_about_name(),
+            reply_markup=ask_about_name_kb(),
             parse_mode=ParseMode.HTML,
         )
     else:
