@@ -1,8 +1,11 @@
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.exceptions import InvalidFirstNameError, InvalidTelegramIdError
 from src.keyboards.start import ask_about_phone_kb
+from src.service.user import UserService
 from src.states.registration import RegistrationState
 
 router = Router(name=__name__)
@@ -38,27 +41,77 @@ async def add_phone(callback: CallbackQuery, state: FSMContext) -> None:
     if isinstance(callback.message, Message):
         await state.set_state(RegistrationState.waiting_for_phone)
         await callback.answer()
-        await callback.message.edit_text(text="Введите номер:")
+        await callback.message.edit_text(text="Введите номер в формате +7XXXXXXXXXX:")
 
 
 @router.callback_query(F.data == "profile_skip_phone")
-async def skip_phone(callback: CallbackQuery, state: FSMContext) -> None:
+async def skip_phone(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession,
+    user_service: UserService,
+) -> None:
     if isinstance(callback.message, Message):
         await callback.answer()
+        await state.update_data(phone=None)
         data = await state.get_data()
-        await finish_registration(callback.message, data, state)
+        await finish_registration(callback.message, data, state, session, user_service)
 
 
 @router.message(RegistrationState.waiting_for_phone)
-async def save_phone(message: Message, state: FSMContext) -> None:
+async def save_phone(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    user_service: UserService,
+) -> None:
     await state.update_data(phone=message.text)
     data = await state.get_data()
-    await finish_registration(message, data, state)
+    await finish_registration(message, data, state, session, user_service)
 
 
-async def finish_registration(message: Message, data: dict, state: FSMContext) -> None:
+async def finish_registration(
+    message: Message,
+    data: dict,
+    state: FSMContext,
+    session: AsyncSession,
+    user_service: UserService,
+) -> None:
+    # Очистка состояния FSM
     await state.clear()
-    await message.answer(
-        f"Вы зарегистрированы!\nИмя: {data.get('first_name')}\n"
-        f"Телефон: {data.get('phone', 'не указан')}"
-    )
+
+    try:
+        telegram_id = data.get("telegram_id")
+        first_name = data.get("first_name")
+        phone = data.get("phone")
+
+        if not isinstance(telegram_id, int):
+            raise InvalidTelegramIdError()
+
+        if not isinstance(first_name, str):
+            raise InvalidFirstNameError()
+
+        user = await user_service.create_or_get_user(
+            session=session,
+            telegram_id=telegram_id,
+            first_name=first_name,
+        )
+
+        user = await user_service.update_name(
+            session=session,
+            user=user,
+            new_name=first_name,
+        )
+
+        if phone:
+            user = await user_service.update_number(
+                session=session, user=user, new_number=phone
+            )
+
+        await message.answer(
+            f"Вы зарегистрированы!\nИмя: {user.first_name}\n"
+            f"Телефон: {user.phone or 'не указан'}"
+        )
+
+    except ValueError as e:
+        await message.answer(f"Ошибка при сохранении данных: {e!s}")

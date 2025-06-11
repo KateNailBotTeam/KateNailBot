@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy.exc import DBAPIError, IntegrityError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.dao.user import UserDAO
 from src.models.user import User
+from src.service.user import UserDAO
 
 
 @pytest.mark.parametrize(
