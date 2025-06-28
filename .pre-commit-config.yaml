@@ -6,12 +6,14 @@ repos:
         entry: poetry run ruff check --fix
         language: system
         types: [ python ]
+        exclude: "^alembic/"
 
       - id: ruff-format
         name: ruff-format (local)
         entry: poetry run ruff format
         language: system
         types: [ python ]
+        exclude: "^alembic/"
 
   - repo: local
     hooks:
@@ -20,4 +22,4 @@ repos:
         entry: poetry run mypy
         language: system
         types: [ python ]
-        exclude: "^tests/"
+        exclude: ^(tests/|alembic/)

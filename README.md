@@ -100,46 +100,35 @@
 
 # Docker Compose для KateNailBot
 
-#### Команды для работы
-Сборка и запуск:
-* `docker compose up -d`
+### Структура сервисов
+* **bot** — основной Telegram-бот
+* **db** — PostgreSQL база данных для бота
+* **tests** — контейнер для запуска тестов
+* **db_test** — отдельная БД для тестов
 
-Собрать и запустить только бота:
-* `docker compose up -d bot`
+### Установка окружения
+* Склонируйте репозиторий и настройте окружение
+`cp .env.example .env`
 
-Остановить все сервисы: 
-* `docker compose down`
+### Docker-профили
+* dev — для запуска бота и базы (bot, db)
+* test — для запуска тестов (tests, db_test)
 
-Остановить с удалением volumes:
-* `docker compose down -v`
+### Запуск профилей
+* Запуск тестов:
+`docker compose --profile test up`
+* Запуск бота в режиме dev:
+`docker compose --profile dev up`
 
-Просмотр логов бота:
-* `docker compose logs -f bot`
-
-Просмотр логов тестов
-* `docker compose logs -f tests`
-
-Запустить тесты (сервис tests автоматически останавливается после выполнения)
-* `docker compose run --rm tests`
-
-### Настройка окружения
-* Скопируйте .env.example в .env
-
-
-### Рекомендации по разработке
-* Для разработки использовать:
+### Запуск отдельных сервисов
+* Только бот:
 `docker compose up -d bot`
 
-* Перед коммитом запускать тесты:
-`docker compose run --rm tests`
+### Тестирование
+* Логи тестов:
+`docker compose logs -f tests`
 
-### Если возникают проблемы с зависимостями, необходимо:
-
-* Удалить контейнеры и volumes:
-`docker compose down -v`
-
-* Пересобрать образы:
-`docker compose build --no-cache`
-
-* Запустить заново:
-`docker compose up -d`
+### Если возникают проблемы с зависимостями:
+* `docker compose down -v`
+* `docker compose build --no-cache`
+* `docker compose up -d`
