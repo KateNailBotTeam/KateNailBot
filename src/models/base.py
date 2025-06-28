@@ -1,13 +1,18 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Integer, func
+from sqlalchemy import DateTime, Integer, Sequence, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
     __abstract__ = True
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        Integer,
+        Sequence("id_sequence"),
+        primary_key=True,
+        server_default=Sequence("id_sequence").next_value(),
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

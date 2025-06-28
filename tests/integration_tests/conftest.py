@@ -35,6 +35,9 @@ async def session(prepare_database) -> AsyncSession:
 
 
 @pytest.fixture(autouse=True)
-async def clean_users_table(session: AsyncSession):
-    await session.execute(text("DELETE FROM users"))
+async def clean_all_tables(session: AsyncSession):
+    tables = Base.metadata.tables.keys()
+    for table_name in tables:
+        print(table_name)
+        await session.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))
     await session.commit()
