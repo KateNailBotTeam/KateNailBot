@@ -9,7 +9,7 @@ from src.exceptions import (
     PhoneAlreadyExistsError,
 )
 from src.models.user import User
-from src.service.base import BaseService
+from src.services.base import BaseService
 
 
 class UserService(BaseService[User]):

@@ -7,7 +7,7 @@ from aiogram.utils import markdown
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.keyboards.start import ask_about_name_kb
-from src.service.user import UserService
+from src.services.user import UserService
 
 router = Router(name=__name__)
 

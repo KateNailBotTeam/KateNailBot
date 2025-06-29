@@ -3,9 +3,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.exceptions import InvalidFirstNameError, InvalidTelegramIdError
+from src.exceptions import (
+    InvalidFirstNameError,
+    InvalidPhoneFormatError,
+    InvalidTelegramIdError,
+    PhoneAlreadyExistsError,
+)
 from src.keyboards.start import ask_about_phone_kb
-from src.service.user import UserService
+from src.services.user import UserService
 from src.states.registration import RegistrationState
 
 router = Router(name=__name__)
@@ -65,9 +70,19 @@ async def save_phone(
     session: AsyncSession,
     user_service: UserService,
 ) -> None:
-    await state.update_data(phone=message.text)
-    data = await state.get_data()
-    await finish_registration(message, data, state, session, user_service)
+    try:
+        await state.update_data(phone=message.text)
+        data = await state.get_data()
+        await finish_registration(message, data, state, session, user_service)
+    except PhoneAlreadyExistsError:
+        await message.answer(
+            "Этот номер телефона уже зарегистрирован. Пожалуйста, введите другой номер:"
+        )
+    except InvalidPhoneFormatError:
+        await message.answer(
+            "Этот номер телефона не соответствует формату."
+            " Пожалуйста, введите другой номер:"
+        )
 
 
 async def finish_registration(
@@ -77,41 +92,37 @@ async def finish_registration(
     session: AsyncSession,
     user_service: UserService,
 ) -> None:
+    telegram_id = data.get("telegram_id")
+    first_name = data.get("first_name")
+    phone = data.get("phone")
+
+    if not isinstance(telegram_id, int):
+        raise InvalidTelegramIdError()
+
+    if not isinstance(first_name, str):
+        raise InvalidFirstNameError()
+
+    user = await user_service.create_or_get_user(
+        session=session,
+        telegram_id=telegram_id,
+        first_name=first_name,
+    )
+
+    user = await user_service.update_name(
+        session=session,
+        user=user,
+        new_name=first_name,
+    )
+
+    if phone:
+        user = await user_service.update_number(
+            session=session, user=user, new_number=phone
+        )
+
+    await message.answer(
+        f"Вы зарегистрированы!\nИмя: {user.first_name}\n"
+        f"Телефон: {user.phone or 'не указан'}"
+    )
+
     # Очистка состояния FSM
     await state.clear()
-
-    try:
-        telegram_id = data.get("telegram_id")
-        first_name = data.get("first_name")
-        phone = data.get("phone")
-
-        if not isinstance(telegram_id, int):
-            raise InvalidTelegramIdError()
-
-        if not isinstance(first_name, str):
-            raise InvalidFirstNameError()
-
-        user = await user_service.create_or_get_user(
-            session=session,
-            telegram_id=telegram_id,
-            first_name=first_name,
-        )
-
-        user = await user_service.update_name(
-            session=session,
-            user=user,
-            new_name=first_name,
-        )
-
-        if phone:
-            user = await user_service.update_number(
-                session=session, user=user, new_number=phone
-            )
-
-        await message.answer(
-            f"Вы зарегистрированы!\nИмя: {user.first_name}\n"
-            f"Телефон: {user.phone or 'не указан'}"
-        )
-
-    except ValueError as e:
-        await message.answer(f"Ошибка при сохранении данных: {e!s}")

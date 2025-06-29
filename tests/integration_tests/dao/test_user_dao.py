@@ -5,22 +5,22 @@ from sqlalchemy.exc import DBAPIError, IntegrityError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.user import User
-from src.service.user import UserDAO
+from src.services.user import UserService
 
 
 @pytest.mark.parametrize(
-    "telegram_id, username, first_name, last_name, phone, is_admin",
+    "telegram_id, username, first_name, phone, is_admin",
     [
-        (1017999, "taylordavis", "Ryan", "Griffin", "+74509171166", True),
-        (4415900, None, "Jason", "Dunn", "+74055965284", True),
-        (4153494, "leekimberly", "Cassidy", "Lloyd", "+78586994522", True),
-        (4440465, "nicole23", "Stephanie", None, "+74843365165", True),
-        (7491685, "gordoneric", "James", "Holmes", None, False),
-        (807783, None, "John", None, None, False),
-        (2774389, "andrea62", "Sonya", "Moore", "+76423145440", True),
-        (5079279, "colonjoshua", "Michael", "Mason", "+74046839310", True),
-        (5848696, "matthewwalton", "Anthony", "Thompson", "+75776924426", False),
-        (7430156, "shaney", "Elizabeth", "Martinez", "+73257068473", False),
+        (1017999, "taylordavis", "Ryan", "+74509171166", True),
+        (4415900, None, "Jason", "+74055965284", True),
+        (4153494, "leekimberly", "Cassidy", "+78586994522", True),
+        (4440465, "nicole23", "Stephanie", "+74843365165", True),
+        (7491685, "gordoneric", "James", None, False),
+        (807783, None, "John", None, False),
+        (2774389, "andrea62", "Sonya", "+76423145440", True),
+        (5079279, "colonjoshua", "Michael", "+74046839310", True),
+        (5848696, "matthewwalton", "Anthony", "+75776924426", False),
+        (7430156, "shaney", "Elizabeth", "+73257068473", False),
     ],
 )
 @pytest.mark.asyncio
@@ -29,7 +29,6 @@ async def test_create_user(
     telegram_id: int,
     username: str | None,
     first_name: str,
-    last_name: str | None,
     phone: str | None,
     is_admin: bool,
 ):
@@ -37,12 +36,11 @@ async def test_create_user(
         telegram_id=telegram_id,
         username=username,
         first_name=first_name,
-        last_name=last_name,
         phone=phone,
         is_admin=is_admin,
     )
 
-    dao = UserDAO()
+    dao = UserService()
 
     created_user = await dao.add(session=session, obj=user)
     await session.commit()
@@ -50,7 +48,6 @@ async def test_create_user(
     assert created_user.telegram_id == telegram_id
     assert created_user.username == username
     assert created_user.first_name == first_name
-    assert created_user.last_name == last_name
     assert created_user.phone == phone
     assert created_user.is_admin == is_admin
     assert created_user.id is not None
@@ -59,13 +56,12 @@ async def test_create_user(
 
 
 @pytest.mark.parametrize(
-    "telegram_id, username, first_name, last_name, phone, is_admin, expected_exception",
+    "telegram_id, username, first_name, phone, is_admin, expected_exception",
     [
         (
             666666,
             "a" * 51,
             "Valid",
-            "Name",
             "+666666666",
             False,
             DBAPIError,
@@ -74,7 +70,6 @@ async def test_create_user(
             777777,
             "valid_user",
             "a" * 101,
-            "Name",
             "+777777777",
             False,
             DBAPIError,
@@ -82,27 +77,16 @@ async def test_create_user(
         (
             888888,
             "valid_user",
-            "Name",
             "a" * 101,
             "+888888888",
             False,
             DBAPIError,
         ),
-        (None, "no_id", "No-ID", "User", "+123123123", False, IntegrityError),
-        (
-            555555,
-            "no_first_name",
-            None,
-            "NoFirstName",
-            "+555555555",
-            False,
-            IntegrityError,
-        ),
+        (None, "no_id", "No-ID", "+123123123", False, IntegrityError),
         (
             999999,
             "valid_user",
             "Name",
-            "Last",
             "phone_number" * 2,
             False,
             DBAPIError,
@@ -111,7 +95,6 @@ async def test_create_user(
     ids=[
         "too_long_username",
         "too_long_first_name",
-        "too_long_last_name",
         "missing_telegram_id",
         "missing_first_name",
         "invalid_phone_format",
@@ -123,7 +106,6 @@ async def test_fail_create_user(
     telegram_id,
     username,
     first_name,
-    last_name,
     phone,
     is_admin,
     expected_exception,
@@ -132,12 +114,11 @@ async def test_fail_create_user(
         telegram_id=telegram_id,
         username=username,
         first_name=first_name,
-        last_name=last_name,
         phone=phone,
         is_admin=is_admin,
     )
 
-    dao = UserDAO()
+    dao = UserService()
 
     with pytest.raises(expected_exception):
         await dao.add(session=session, obj=user)
@@ -145,11 +126,11 @@ async def test_fail_create_user(
 
 
 @pytest.mark.parametrize(
-    "telegram_id, username, first_name, last_name, phone, is_admin",
+    "telegram_id, username, first_name, phone, is_admin",
     [
-        (1017999, "taylordavis", "Ryan", "Griffin", "+74509171166", True),
-        (4415900, None, "Jason", "Dunn", "+74055965284", False),
-        (4153494, "leekimberly", "Cassidy", "Lloyd", "+78586994522", False),
+        (1017999, "taylordavis", "Ryan", "+74509171166", True),
+        (4415900, None, "Jason", "+74055965284", False),
+        (4153494, "leekimberly", "Cassidy", "+78586994522", False),
     ],
     ids=["with_all_fields", "without_username", "full_fields_not_admin"],
 )
@@ -159,7 +140,6 @@ async def test_get_user_by_id(
     telegram_id: int,
     username: str | None,
     first_name: str,
-    last_name: str | None,
     phone: str | None,
     is_admin: bool,
 ):
@@ -167,11 +147,10 @@ async def test_get_user_by_id(
         telegram_id=telegram_id,
         username=username,
         first_name=first_name,
-        last_name=last_name,
         phone=phone,
         is_admin=is_admin,
     )
-    dao = UserDAO()
+    dao = UserService()
 
     created_user = await dao.add(session=session, obj=user)
     get_user = await dao.get(session=session, obj_id=created_user.id)
@@ -180,7 +159,6 @@ async def test_get_user_by_id(
     assert get_user.telegram_id == telegram_id
     assert get_user.username == username
     assert get_user.first_name == first_name
-    assert get_user.last_name == last_name
     assert get_user.phone == phone
     assert get_user.is_admin == is_admin
     assert get_user.created_at is not None
@@ -202,7 +180,7 @@ async def test_get_user_by_id(
 async def test_fail_get_user_by_id(
     session: AsyncSession, invalid_id, expected_exception
 ):
-    dao = UserDAO()
+    dao = UserService()
 
     if expected_exception is None:
         result = await dao.get(session=session, obj_id=invalid_id)
@@ -213,18 +191,16 @@ async def test_fail_get_user_by_id(
 
 
 @pytest.mark.parametrize(
-    "telegram_id, username, first_name, last_name, phone, is_admin, updates",
+    "telegram_id, username, first_name, phone, is_admin, updates",
     [
         (
             2774389,
             "andrea62",
             "Sonya",
-            "Moore",
             "+76423145440",
             True,
             {
                 "username": "new_username",
-                "last_name": "new_last_name",
                 "phone": "+79192454433",
             },
         ),
@@ -236,7 +212,6 @@ async def test_update_user(
     telegram_id: int,
     username: str | None,
     first_name: str,
-    last_name: str | None,
     phone: str | None,
     is_admin: bool,
     updates: dict,
@@ -245,11 +220,10 @@ async def test_update_user(
         telegram_id=telegram_id,
         username=username,
         first_name=first_name,
-        last_name=last_name,
         phone=phone,
         is_admin=is_admin,
     )
-    dao = UserDAO()
+    dao = UserService()
 
     created_user = await dao.add(session=session, obj=user)
 
@@ -260,7 +234,6 @@ async def test_update_user(
     assert updated_user.telegram_id == created_user.telegram_id
     assert updated_user.username == updates["username"]
     assert updated_user.first_name == created_user.first_name
-    assert updated_user.last_name == updates["last_name"]
     assert updated_user.phone == updates["phone"]
     assert updated_user.is_admin == created_user.is_admin
     assert updated_user.id is not None
@@ -269,18 +242,11 @@ async def test_update_user(
 
 
 @pytest.mark.parametrize(
-    "telegram_id,"
-    " username,"
-    " first_name,"
-    " last_name,"
-    " phone,"
-    " is_admin,"
-    " delete_id,"
-    " test_result",
+    "telegram_id, username, first_name, phone, is_admin, delete_id, test_result",
     [
-        (7491685, "gordoneric", "James", "Holmes", None, False, None, True),
-        (1234567, "otheruser", "Alice", "Smith", "1234567890", False, None, True),
-        (9999999, "ghost", "Ghost", None, None, False, 999999999, False),
+        (7491685, "gordoneric", "James", None, False, None, True),
+        (1234567, "otheruser", "Alice", "1234567890", False, None, True),
+        (9999999, "ghost", "Ghost", None, False, 999999999, False),
     ],
 )
 @pytest.mark.asyncio
@@ -289,19 +255,17 @@ async def test_delete_user(
     telegram_id: int,
     username: str | None,
     first_name: str,
-    last_name: str | None,
     phone: str | None,
     is_admin: bool,
     delete_id: int | None,
     test_result: bool,
 ):
-    dao = UserDAO()
+    dao = UserService()
     if delete_id is None:
         user = User(
             telegram_id=telegram_id,
             username=username,
             first_name=first_name,
-            last_name=last_name,
             phone=phone,
             is_admin=is_admin,
         )

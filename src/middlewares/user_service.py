@@ -4,7 +4,7 @@ from typing import Any
 from aiogram import BaseMiddleware
 from aiogram.types.base import TelegramObject
 
-from src.service.user import UserService
+from src.services.user import UserService
 
 
 class UserServiceMiddleware(BaseMiddleware):
