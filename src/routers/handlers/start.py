@@ -99,7 +99,7 @@ async def finish_registration(
     if not isinstance(telegram_id, int):
         raise InvalidTelegramIdError()
 
-    if not isinstance(first_name, str):
+    if not isinstance(first_name, str) or not first_name:
         raise InvalidFirstNameError()
 
     user = await user_service.create_or_get_user(

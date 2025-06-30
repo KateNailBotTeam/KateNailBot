@@ -9,7 +9,7 @@ from src.config import settings
 from src.middlewares.db import DatabaseMiddleware
 from src.middlewares.user_service import UserServiceMiddleware
 from src.routers import router
-from src.static import commands
+from src.static_commands import commands
 
 
 async def main() -> None:
