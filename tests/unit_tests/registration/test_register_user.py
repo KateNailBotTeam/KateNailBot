@@ -4,8 +4,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions import InvalidFirstNameError, InvalidTelegramIdError
-from src.keyboards.start import InlineKeyboardMarkup
+from src.keyboards.start import InlineKeyboardMarkup, ask_about_name_kb
 from src.models.user import User
+from src.routers.commands.start import handle_start
 from src.routers.handlers.start import (
     add_phone,
     change_name,
@@ -198,3 +199,44 @@ async def test_finish_registration_errors(
     user_service_mock.update_number.assert_not_called()
     message_mock.answer.assert_not_called()
     state_mock.clear.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_handle_start(message_mock, state_mock):
+    session_mock = AsyncMock(spec=AsyncSession)
+    user_service_mock = MagicMock(spec=UserService)
+
+    message_mock.from_user = MagicMock()
+    message_mock.from_user.id = 123
+    message_mock.from_user.first_name = "John"
+    message_mock.from_user.is_bot = False
+    message_mock.from_user.username = "test_user"
+
+    db_user_mock = MagicMock()
+    db_user_mock.first_name = "John_DB"
+
+    user_service_mock.get_by_telegram_id = AsyncMock(return_value=db_user_mock)
+    state_mock.update_data = AsyncMock()
+
+    await handle_start(
+        message=message_mock,
+        session=session_mock,
+        user_service=user_service_mock,
+        state=state_mock,
+    )
+
+    user_service_mock.get_by_telegram_id.assert_awaited_once_with(
+        session=session_mock, telegram_id=123
+    )
+
+    state_mock.update_data.assert_awaited_once_with(
+        telegram_id=123, first_name="John_DB"
+    )
+
+    message_mock.answer.assert_awaited_once()
+
+    args, kwargs = message_mock.answer.call_args
+    assert "reply_markup" in kwargs
+
+    actual_keyboard = kwargs["reply_markup"]
+    assert actual_keyboard == ask_about_name_kb()
