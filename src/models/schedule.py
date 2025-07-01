@@ -1,7 +1,7 @@
-from datetime import date, time
+from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Time, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.base import Base
@@ -15,11 +15,8 @@ class VisitDurationTimeEnum(Enum):
 class Schedule(Base):
     __tablename__ = "schedules"
 
-    visit_date: Mapped[date] = mapped_column(
-        Date, nullable=False, description="День посещения"
-    )
-    visit_time: Mapped[time] = mapped_column(
-        Time, nullable=False, description="Время посещения"
+    visit_datetime: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, description="День и время посещения"
     )
     visit_duration: Mapped[int] = mapped_column(
         Integer,
