@@ -1,0 +1,44 @@
+from datetime import date, time
+from enum import Enum
+
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, Time, text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.models.base import Base
+
+
+class VisitDurationTimeEnum(Enum):
+    HALF_HOUR = 30
+    HOUR = 60
+
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+
+    visit_date: Mapped[date] = mapped_column(
+        Date, nullable=False, description="День посещения"
+    )
+    visit_time: Mapped[time] = mapped_column(
+        Time, nullable=False, description="Время посещения"
+    )
+    visit_duration: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=VisitDurationTimeEnum.HALF_HOUR.value,
+        server_default=text(str(VisitDurationTimeEnum.HALF_HOUR.value)),
+        description="Длительность посещения",
+    )
+    is_booked: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+        description="Занят ли слот",
+    )
+    user_telegram_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.telegram_id", onupdate="CASCADE", ondelete="CASCADE"),
+        nullable=True,
+        default=None,
+        server_default=text("NULL"),
+        description="Телеграм ID пользователя, если слот занят",
+    )
