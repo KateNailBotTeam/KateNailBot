@@ -7,6 +7,7 @@ from redis.asyncio.client import Redis
 
 from src.config import settings
 from src.middlewares.db import DatabaseMiddleware
+from src.middlewares.schedule_service import ScheduleServiceMiddleware
 from src.middlewares.user_service import UserServiceMiddleware
 from src.routers import router
 from src.static_commands import commands
@@ -30,6 +31,7 @@ async def main() -> None:
         dp.include_routers(router)
         dp.update.middleware(DatabaseMiddleware())
         dp.update.middleware(UserServiceMiddleware())
+        dp.update.middleware(ScheduleServiceMiddleware())
 
         logging.basicConfig(level=logging.DEBUG)
 
