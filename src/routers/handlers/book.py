@@ -38,7 +38,9 @@ async def show_days(
         )
 
 
-@router.callback_query(ChooseVisitDatetime.waiting_for_date)
+@router.callback_query(
+    ChooseVisitDatetime.waiting_for_date, F.data.startswith("choose_date_")
+)
 async def show_time(
     callback: CallbackQuery, state: FSMContext, schedule_service: ScheduleService
 ) -> None:
@@ -59,7 +61,9 @@ async def show_time(
         )
 
 
-@router.callback_query(ChooseVisitDatetime.waiting_for_time)
+@router.callback_query(
+    ChooseVisitDatetime.waiting_for_time, F.data.startswith("timeline_")
+)
 async def finish_booking(
     callback: CallbackQuery,
     state: FSMContext,
@@ -71,7 +75,7 @@ async def finish_booking(
             await callback.answer()
 
             visit_time_str = callback.data.replace("timeline_", "")
-            visit_time = datetime.strptime(visit_time_str, "%H:%M:%S").time()
+            visit_time = datetime.strptime(visit_time_str, "%H:%M").time()
 
             data = await state.get_data()
             visit_date_str = data.get("visit_date_str")
@@ -103,10 +107,20 @@ async def finish_booking(
     await state.clear()
 
 
-@router.callback_query(F.data == "my_bookings")
-async def my_bookings(callback: CallbackQuery) -> None:
+@router.callback_query(F.data == "user_bookings")
+async def my_bookings(
+    callback: CallbackQuery, schedule_service: ScheduleService, session: AsyncSession
+) -> None:
     if isinstance(callback.message, Message):
-        await callback.message.answer(text="Мои бронирования : ...")
+        user_telegram_id = callback.from_user.id
+        schedules = await schedule_service.show_user_schedules(
+            session=session, user_telegram_id=user_telegram_id
+        )
+
+        if schedules:
+            await callback.message.edit_text(text=f"{schedules}")
+        else:
+            await callback.message.edit_text(text="У вас нет записей")
 
 
 @router.callback_query(F.data == "show_schedule")

@@ -76,11 +76,12 @@ def create_calendar_for_available_dates(dates: list[date]) -> InlineKeyboardMark
 def create_choose_time_keyboard(time_slots: list[time]) -> InlineKeyboardMarkup:
     kb = []
     for time_slot in time_slots:
+        time_to_text = time_slot.strftime("%H:%M")
         kb.append(
             [
                 InlineKeyboardButton(
-                    text=f"{time_slot.strftime('%H:%M')}",
-                    callback_data=f"timeline_{time_slot}",
+                    text=f"{time_to_text}",
+                    callback_data=f"timeline_{time_to_text}",
                 )
             ]
         )

@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import (
@@ -95,3 +95,18 @@ class ScheduleService(BaseService[Schedule]):
         )
         created_slot = await self.add(session=session, obj=new_slot)
         return created_slot
+
+    async def show_user_schedules(
+        self,
+        session: AsyncSession,
+        user_telegram_id: int,
+    ) -> list[datetime]:
+        stmt = select(Schedule.visit_datetime).where(
+            and_(
+                Schedule.user_telegram_id == user_telegram_id,
+            )
+        )
+
+        result = await session.execute(stmt)
+        schedules = list(result.scalars().all())
+        return schedules
