@@ -3,7 +3,7 @@ import re
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.exceptions import (
+from src.exceptions.registration import (
     InvalidFoundUserError,
     InvalidPhoneFormatError,
     PhoneAlreadyExistsError,

@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.exceptions import (
+from src.exceptions.registration import (
     InvalidFirstNameError,
     InvalidPhoneFormatError,
     InvalidTelegramIdError,

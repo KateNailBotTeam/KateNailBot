@@ -17,11 +17,11 @@ class InvalidFoundUserError(RegistrationError):
         super().__init__("Пользователь не найден при обновлении данных.")
 
 
-class InvalidPhoneFormatError(ValueError):
+class InvalidPhoneFormatError(RegistrationError, ValueError):
     def __init__(self) -> None:
         super().__init__("Неверный формат номера. Используйте +7XXXXXXXXXX.")
 
 
-class PhoneAlreadyExistsError(ValueError):
+class PhoneAlreadyExistsError(RegistrationError, ValueError):
     def __init__(self) -> None:
         super().__init__("Этот номер уже используется")

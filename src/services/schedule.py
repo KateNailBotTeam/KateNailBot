@@ -3,6 +3,11 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.exceptions.booking import (
+    BookingDateError,
+    BookingTimeError,
+    SlotAlreadyBookedError,
+)
 from src.models.schedule import Schedule
 from src.services.base import BaseService
 
@@ -33,7 +38,7 @@ class ScheduleService(BaseService[Schedule]):
 
     def get_time_slots(
         self, visit_date: date, duration: int = DEFAULT_SLOT_DURATION
-    ) -> list[datetime]:
+    ) -> list[time]:
         time_slots = []
         last_visit = datetime.combine(
             visit_date,
@@ -48,7 +53,7 @@ class ScheduleService(BaseService[Schedule]):
         )
 
         while start_visit <= last_visit:
-            time_slots.append(start_visit)
+            time_slots.append(start_visit.time())
             start_visit += timedelta(minutes=duration)
         return time_slots
 
@@ -57,20 +62,18 @@ class ScheduleService(BaseService[Schedule]):
     ) -> bool:
         dt = datetime.combine(visit_date, visit_time)
 
-        if not (
-            visit_date in self.get_available_dates()
-            and dt in self.get_time_slots(visit_date=visit_date)
-        ):
-            return False
+        if visit_date not in self.get_available_dates():
+            raise BookingDateError(date_info=visit_date)
+
+        if visit_time not in self.get_time_slots(visit_date=visit_date):
+            raise BookingTimeError(time_info=visit_time)
 
         stmt = select(Schedule.is_booked).where(Schedule.visit_datetime == dt)
 
         result = await session.execute(stmt)
         booked = result.scalar_one_or_none()
-        if booked is None:
-            return True
 
-        return not booked
+        return bool(booked is None or booked is False)
 
     async def mark_slot_busy(
         self,
@@ -79,12 +82,10 @@ class ScheduleService(BaseService[Schedule]):
         visit_time: time,
         user_telegram_id: int,
         duration: int = DEFAULT_SLOT_DURATION,
-    ) -> bool:
-        available = await self.is_slot_available(
-            session=session, visit_date=visit_date, visit_time=visit_time
-        )
+    ) -> Schedule:
+        available = await self.is_slot_available(session, visit_date, visit_time)
         if not available:
-            return False
+            raise SlotAlreadyBookedError()
 
         new_slot = Schedule(
             visit_datetime=datetime.combine(visit_date, visit_time),
@@ -92,7 +93,5 @@ class ScheduleService(BaseService[Schedule]):
             is_booked=True,
             user_telegram_id=user_telegram_id,
         )
-
-        session.add(new_slot)
-        await session.commit()
-        return True
+        created_slot = await self.add(session=session, obj=new_slot)
+        return created_slot

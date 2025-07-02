@@ -1,9 +1,8 @@
 import calendar
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, time
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from asyncpg.pgproto.pgproto import timedelta
 
 RU_MONTHS = {
     1: "Январь",
@@ -74,18 +73,14 @@ def create_calendar_for_available_dates(dates: list[date]) -> InlineKeyboardMark
     return InlineKeyboardMarkup(inline_keyboard=full_kb)
 
 
-def create_choose_time_keyboard(
-    time_slots: list[datetime], duration: int
-) -> InlineKeyboardMarkup:
+def create_choose_time_keyboard(time_slots: list[time]) -> InlineKeyboardMarkup:
     kb = []
-    for timeline in time_slots:
-        visit_end_time = timeline + timedelta(minutes=duration)
+    for time_slot in time_slots:
         kb.append(
             [
                 InlineKeyboardButton(
-                    text=f"{timeline.strftime('%H:%M')} - "
-                    f"{visit_end_time.strftime('%H:%M')}",
-                    callback_data=f"timeline_{timeline}",
+                    text=f"{time_slot.strftime('%H:%M')}",
+                    callback_data=f"timeline_{time_slot}",
                 )
             ]
         )
