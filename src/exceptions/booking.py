@@ -28,3 +28,8 @@ class BookingTimeError(BookingError):
 class SlotAlreadyBookedError(BookingError):
     def __init__(self) -> None:
         super().__init__("Слот уже занят")
+
+
+class BookingDeleteError(BookingError):
+    def __init__(self) -> None:
+        super().__init__("Не получилось удалить запись. Возможно она отсутствует")

@@ -1,10 +1,11 @@
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import (
     BookingDateError,
+    BookingDeleteError,
     BookingTimeError,
     SlotAlreadyBookedError,
 )
@@ -96,17 +97,41 @@ class ScheduleService(BaseService[Schedule]):
         created_slot = await self.add(session=session, obj=new_slot)
         return created_slot
 
+    @staticmethod
     async def show_user_schedules(
-        self,
         session: AsyncSession,
         user_telegram_id: int,
     ) -> list[datetime]:
-        stmt = select(Schedule.visit_datetime).where(
-            and_(
-                Schedule.user_telegram_id == user_telegram_id,
+        stmt = (
+            select(Schedule.visit_datetime)
+            .where(
+                and_(
+                    Schedule.user_telegram_id == user_telegram_id,
+                    Schedule.is_booked,
+                    Schedule.visit_datetime > datetime.now(),
+                )
             )
+            .order_by(Schedule.visit_datetime)
         )
 
         result = await session.execute(stmt)
         schedules = list(result.scalars().all())
         return schedules
+
+    @staticmethod
+    async def cancel_booking(
+        session: AsyncSession, user_telegram_id: int, datetime_to_cancel: datetime
+    ) -> None:
+        stmt = delete(Schedule).where(
+            and_(
+                Schedule.user_telegram_id == user_telegram_id,
+                Schedule.visit_datetime == datetime_to_cancel,
+            )
+        )
+
+        result = await session.execute(stmt)
+
+        await session.commit()
+
+        if not result.rowcount:
+            raise BookingDeleteError()
