@@ -76,26 +76,38 @@ class ScheduleService(BaseService[Schedule]):
 
         return bool(booked is None or booked is False)
 
+    @staticmethod
     async def mark_slot_busy(
-        self,
         session: AsyncSession,
         visit_date: date,
         visit_time: time,
         user_telegram_id: int,
         duration: int = DEFAULT_SLOT_DURATION,
     ) -> Schedule:
-        available = await self.is_slot_available(session, visit_date, visit_time)
-        if not available:
-            raise SlotAlreadyBookedError()
+        visit_datetime = datetime.combine(visit_date, visit_time)
 
-        new_slot = Schedule(
-            visit_datetime=datetime.combine(visit_date, visit_time),
-            visit_duration=duration,
-            is_booked=True,
-            user_telegram_id=user_telegram_id,
-        )
-        created_slot = await self.add(session=session, obj=new_slot)
-        return created_slot
+        async with session.begin():
+            stmt = (
+                select(Schedule)
+                .where(Schedule.visit_datetime == visit_datetime)
+                .with_for_update()
+            )
+
+            result = await session.execute(stmt)
+            existing_slot = result.scalar_one_or_none()
+
+            if existing_slot and existing_slot.is_booked:
+                raise SlotAlreadyBookedError()
+
+            new_slot = Schedule(
+                visit_datetime=visit_datetime,
+                visit_duration=duration,
+                is_booked=True,
+                user_telegram_id=user_telegram_id,
+            )
+            session.add(new_slot)
+            await session.flush()
+            return new_slot
 
     @staticmethod
     async def show_user_schedules(

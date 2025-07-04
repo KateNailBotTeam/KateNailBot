@@ -12,6 +12,7 @@ def create_book_main_menu_kb() -> InlineKeyboardMarkup:
             )
         ],
         [InlineKeyboardButton(text="Отменить запись", callback_data="cancel_booking")],
+        [InlineKeyboardButton(text="ВЫХОД", callback_data="cancel")],
     ]
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
@@ -31,7 +32,7 @@ def create_booking_list_kb(schedules: list[datetime]) -> InlineKeyboardMarkup:
                 )
             ]
         )
-
+    kb.append([InlineKeyboardButton(text="ВЫХОД", callback_data="cancel")])
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
 
     return keyboard

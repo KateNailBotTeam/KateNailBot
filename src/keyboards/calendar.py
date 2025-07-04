@@ -70,6 +70,8 @@ def create_calendar_for_available_dates(dates: list[date]) -> InlineKeyboardMark
         kb_section = build_calendar_section(year, month, grouped[(year, month)])
         full_kb.extend(kb_section)
 
+    full_kb.append([InlineKeyboardButton(text="ВЫХОД", callback_data="cancel")])
+
     return InlineKeyboardMarkup(inline_keyboard=full_kb)
 
 
@@ -85,5 +87,6 @@ def create_choose_time_keyboard(time_slots: list[time]) -> InlineKeyboardMarkup:
                 )
             ]
         )
+    kb.append([InlineKeyboardButton(text="ВЫХОД", callback_data="cancel")])
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
