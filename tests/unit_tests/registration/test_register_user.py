@@ -4,7 +4,7 @@ import pytest
 from aiogram.types import InlineKeyboardMarkup
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.exceptions import InvalidFirstNameError, InvalidTelegramIdError
+from src.exceptions.registration import InvalidFirstNameError, InvalidTelegramIdError
 from src.keyboards.start import ask_about_name_kb
 from src.models.user import User
 from src.routers.commands.start import handle_start
