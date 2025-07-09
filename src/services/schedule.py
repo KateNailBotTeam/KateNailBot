@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import (
@@ -86,7 +86,11 @@ class ScheduleService(BaseService[Schedule]):
     ) -> Schedule:
         visit_datetime = datetime.combine(visit_date, visit_time)
 
-        async with session.begin():  # isolation_level="REPEATABLE READ"
+        async with session.begin():
+            await session.execute(
+                text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            )
+
             slot_available = await self.is_slot_available(
                 session=session, visit_date=visit_date, visit_time=visit_time
             )

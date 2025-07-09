@@ -31,6 +31,7 @@ async def test_create_user(
     first_name: str,
     phone: str | None,
     is_admin: bool,
+    user_service: UserService,
 ):
     user = User(
         telegram_id=telegram_id,
@@ -40,9 +41,7 @@ async def test_create_user(
         is_admin=is_admin,
     )
 
-    dao = UserService()
-
-    created_user = await dao.add(session=session, obj=user)
+    created_user = await user_service.add(session=session, obj=user)
     await session.commit()
 
     assert created_user.telegram_id == telegram_id
@@ -103,12 +102,13 @@ async def test_create_user(
 @pytest.mark.asyncio
 async def test_fail_create_user(
     session: AsyncSession,
-    telegram_id,
-    username,
-    first_name,
-    phone,
-    is_admin,
-    expected_exception,
+    telegram_id: int,
+    username: str,
+    first_name: str,
+    phone: str,
+    is_admin: bool,
+    expected_exception: type[Exception],
+    user_service: UserService,
 ):
     user = User(
         telegram_id=telegram_id,
@@ -118,10 +118,8 @@ async def test_fail_create_user(
         is_admin=is_admin,
     )
 
-    dao = UserService()
-
     with pytest.raises(expected_exception):
-        await dao.add(session=session, obj=user)
+        await user_service.add(session=session, obj=user)
         await session.commit()
 
 
@@ -142,6 +140,7 @@ async def test_get_user_by_id(
     first_name: str,
     phone: str | None,
     is_admin: bool,
+    user_service: UserService,
 ):
     user = User(
         telegram_id=telegram_id,
@@ -150,10 +149,9 @@ async def test_get_user_by_id(
         phone=phone,
         is_admin=is_admin,
     )
-    dao = UserService()
 
-    created_user = await dao.add(session=session, obj=user)
-    get_user = await dao.get(session=session, obj_id=created_user.id)
+    created_user = await user_service.add(session=session, obj=user)
+    get_user = await user_service.get(session=session, obj_id=created_user.id)
 
     assert get_user is not None, "User not found"
     assert get_user.telegram_id == telegram_id
@@ -178,16 +176,17 @@ async def test_get_user_by_id(
 )
 @pytest.mark.asyncio
 async def test_fail_get_user_by_id(
-    session: AsyncSession, invalid_id, expected_exception
+    session: AsyncSession,
+    invalid_id: int | float | str | None,
+    expected_exception,
+    user_service: UserService,
 ):
-    dao = UserService()
-
     if expected_exception is None:
-        result = await dao.get(session=session, obj_id=invalid_id)
+        result = await user_service.get(session=session, obj_id=invalid_id)
         assert result is None
     else:
         with pytest.raises(expected_exception):
-            await dao.get(session=session, obj_id=invalid_id)
+            await user_service.get(session=session, obj_id=invalid_id)
 
 
 @pytest.mark.parametrize(
@@ -215,6 +214,7 @@ async def test_update_user(
     phone: str | None,
     is_admin: bool,
     updates: dict,
+    user_service: UserService,
 ):
     user = User(
         telegram_id=telegram_id,
@@ -223,11 +223,10 @@ async def test_update_user(
         phone=phone,
         is_admin=is_admin,
     )
-    dao = UserService()
 
-    created_user = await dao.add(session=session, obj=user)
+    created_user = await user_service.add(session=session, obj=user)
 
-    updated_user = await dao.update(
+    updated_user = await user_service.update(
         session=session, obj_id=created_user.id, new_data=updates
     )
 
@@ -259,8 +258,8 @@ async def test_delete_user(
     is_admin: bool,
     delete_id: int | None,
     test_result: bool,
+    user_service: UserService,
 ):
-    dao = UserService()
     if delete_id is None:
         user = User(
             telegram_id=telegram_id,
@@ -269,14 +268,14 @@ async def test_delete_user(
             phone=phone,
             is_admin=is_admin,
         )
-        created_user = await dao.add(session=session, obj=user)
+        created_user = await user_service.add(session=session, obj=user)
         obj_id_to_delete = created_user.id
     else:
         obj_id_to_delete = delete_id
 
-    result = await dao.delete(session=session, obj_id=obj_id_to_delete)
+    result = await user_service.delete(session=session, obj_id=obj_id_to_delete)
 
     assert result is test_result
 
-    user_after = await dao.get(session=session, obj_id=obj_id_to_delete)
+    user_after = await user_service.get(session=session, obj_id=obj_id_to_delete)
     assert user_after is None
