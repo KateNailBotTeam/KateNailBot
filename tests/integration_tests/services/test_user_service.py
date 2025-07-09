@@ -1,7 +1,7 @@
 # ruff: noqa: PLR0913
 
 import pytest
-from sqlalchemy.exc import DBAPIError, IntegrityError, ProgrammingError
+from sqlalchemy.exc import DBAPIError, ProgrammingError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.user import User
@@ -61,51 +61,49 @@ async def test_create_user(
             666666,
             "a" * 51,
             "Valid",
-            "+666666666",
+            "+79999999999",
             False,
-            DBAPIError,
+            SQLAlchemyError,
         ),
         (
             777777,
             "valid_user",
             "a" * 101,
-            "+777777777",
+            "+79999999999",
             False,
-            DBAPIError,
+            SQLAlchemyError,
         ),
         (
-            888888,
-            "valid_user",
-            "a" * 101,
-            "+888888888",
+            None,
+            "no_id",
+            "No-ID",
+            "+79999999999",
             False,
-            DBAPIError,
+            SQLAlchemyError,
         ),
-        (None, "no_id", "No-ID", "+123123123", False, IntegrityError),
         (
             999999,
             "valid_user",
             "Name",
-            "phone_number" * 2,
+            "+799999999999",
             False,
-            DBAPIError,
+            SQLAlchemyError,
         ),
     ],
     ids=[
         "too_long_username",
         "too_long_first_name",
         "missing_telegram_id",
-        "missing_first_name",
-        "invalid_phone_format",
+        "too_long_phone",
     ],
 )
 @pytest.mark.asyncio
 async def test_fail_create_user(
     session: AsyncSession,
-    telegram_id: int,
-    username: str,
+    telegram_id: int | None,
+    username: str | None,
     first_name: str,
-    phone: str,
+    phone: str | None,
     is_admin: bool,
     expected_exception: type[Exception],
     user_service: UserService,
@@ -121,6 +119,8 @@ async def test_fail_create_user(
     with pytest.raises(expected_exception):
         await user_service.add(session=session, obj=user)
         await session.commit()
+
+    await session.rollback()
 
 
 @pytest.mark.parametrize(

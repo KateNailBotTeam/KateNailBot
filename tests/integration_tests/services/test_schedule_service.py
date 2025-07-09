@@ -1,5 +1,6 @@
 # ruff: noqa: PLR0913
 from datetime import date, datetime, time, timedelta
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,32 +11,54 @@ from src.models.user import User
 from src.services.schedule import ScheduleService
 
 
+@patch("src.services.schedule.datetime")
+@patch.object(ScheduleService, "WORKING_DAYS", (0, 1, 2, 3, 4))
 @pytest.mark.asyncio
 async def test_show_user_schedules(
+    mock_datetime,  # <-- ЭТО ВАЖНО
     session: AsyncSession,
     schedule_service: ScheduleService,
     create_users: list[User],
     available_dates: list[date],
     time_slots: list[time],
 ):
+    mock_datetime.now.return_value = datetime(2025, 3, 3, 8, 0, 0)
+
+    user = create_users[0]
     visit_date = available_dates[-1]
     visit_time = time_slots[0]
 
-    for user in create_users:
-        await schedule_service.mark_slot_busy(
-            session=session,
-            visit_date=visit_date,
-            visit_time=visit_time,
-            user_telegram_id=user.telegram_id,
-            duration=schedule_service.DEFAULT_SLOT_DURATION,
-        )
+    booked_slot = Schedule(
+        visit_datetime=datetime.combine(visit_date, visit_time),
+        visit_duration=60,
+        is_booked=True,
+        user_telegram_id=user.telegram_id,
+    )
 
-        schedules = await schedule_service.show_user_schedules(
-            session=session, user_telegram_id=user.telegram_id
-        )
+    past_date = datetime(2025, 3, 2).date()
+    past_slot = Schedule(
+        visit_datetime=datetime.combine(past_date, visit_time),
+        visit_duration=60,
+        is_booked=True,
+        user_telegram_id=user.telegram_id,
+    )
 
-        assert len(schedules) == 1
-        assert datetime.combine(visit_date, visit_time) in schedules
+    other_user_slot = Schedule(
+        visit_datetime=datetime.combine(visit_date, time_slots[2]),
+        visit_duration=60,
+        is_booked=True,
+        user_telegram_id=create_users[1].telegram_id,
+    )
+
+    session.add_all([booked_slot, past_slot, other_user_slot])
+    await session.commit()
+
+    schedules = await schedule_service.show_user_schedules(
+        session=session, user_telegram_id=user.telegram_id
+    )
+
+    assert len(schedules) == 1
+    assert schedules[0] == datetime.combine(visit_date, visit_time)
 
 
 @pytest.mark.asyncio

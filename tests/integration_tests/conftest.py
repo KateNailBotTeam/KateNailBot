@@ -61,16 +61,20 @@ async def schedule_service():
 async def create_users(session: AsyncSession, users_quantity=3):
     users = []
     for i in range(users_quantity):
-        default_data = {
-            "telegram_id": i * 10000,
-            "username": f"user_{i}",
-            "first_name": "Test",
-            "phone": f"+79{i * 1000000000}",
-            "is_admin": False,
-        }
-        user = User(**default_data)
+        user = User(
+            telegram_id=i * 10000 + 1,
+            username=f"user_{i}"[:50],
+            first_name=f"TestUser{i}"[:100],
+            phone=f"+7{9000000000 + i}",
+            is_admin=False,
+        )
         users.append(user)
-
+        print("CREATING USER")
+        print(user.telegram_id)
+        print(user.username)
+        print(user.first_name)
+        print(user.phone)
+        print(user.is_admin)
     session.add_all(users)
     await session.commit()
     return users
