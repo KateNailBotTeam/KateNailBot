@@ -3,9 +3,15 @@ from datetime import date, datetime, time, timedelta
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.exceptions.booking import BookingDateError, BookingTimeError
+from src.exceptions.booking import (
+    BookingDateError,
+    BookingDeleteError,
+    BookingTimeError,
+    SlotAlreadyBookedError,
+)
 from src.models.schedule import Schedule
 from src.models.user import User
 from src.services.schedule import ScheduleService
@@ -177,4 +183,184 @@ async def test_is_slot_available_with_invalid_time(
             visit_date=visit_date,
             visit_time=visit_time,
             user_telegram_id=user.telegram_id,
+        )
+
+
+@pytest.mark.asyncio
+async def test_mark_slot_busy(
+    session: AsyncSession,
+    create_users: list[User],
+    schedule_service: ScheduleService,
+    available_dates: list[date],
+    time_slots: list[time],
+):
+    user = create_users[-1]
+    visit_date = available_dates[-1]
+    visit_time = time_slots[0]
+
+    assert await schedule_service.is_slot_available(session, visit_date, visit_time), (
+        "Слот должен быть свободен перед тестом"
+    )
+
+    await schedule_service.mark_slot_busy(
+        session=session,
+        visit_date=visit_date,
+        visit_time=visit_time,
+        user_telegram_id=user.telegram_id,
+    )
+
+    stmt = select(Schedule).where(
+        Schedule.visit_datetime == datetime.combine(visit_date, visit_time)
+    )
+
+    result = await session.execute(stmt)
+
+    user_schedule = result.scalar_one()
+
+    assert user_schedule.user_telegram_id == user.telegram_id
+    assert user_schedule.visit_datetime == datetime.combine(visit_date, visit_time)
+    assert user_schedule.is_booked is True
+    assert user_schedule.visit_duration == schedule_service.DEFAULT_SLOT_DURATION
+
+    is_available_after_book = await schedule_service.is_slot_available(
+        session=session, visit_date=visit_date, visit_time=visit_time
+    )
+    assert not is_available_after_book, "Слот должен быть занят после бронирования"
+
+
+@pytest.mark.asyncio
+async def test_mark_slot_busy_already_booked(
+    session: AsyncSession,
+    create_users: list[User],
+    schedule_service: ScheduleService,
+    available_dates: list[date],
+    time_slots: list[time],
+):
+    user_1 = create_users[-1]
+    user_2 = create_users[-2]
+    visit_date = available_dates[-1]
+    visit_time = time_slots[0]
+
+    assert await schedule_service.is_slot_available(session, visit_date, visit_time), (
+        "Слот должен быть свободен перед тестом"
+    )
+
+    await schedule_service.mark_slot_busy(
+        session=session,
+        visit_date=visit_date,
+        visit_time=visit_time,
+        user_telegram_id=user_1.telegram_id,
+    )
+
+    with pytest.raises(SlotAlreadyBookedError):
+        await schedule_service.mark_slot_busy(
+            session=session,
+            visit_date=visit_date,
+            visit_time=visit_time,
+            user_telegram_id=user_2.telegram_id,
+        )
+
+
+@pytest.mark.asyncio
+async def test_cancel_booking(
+    session: AsyncSession,
+    create_users: list[User],
+    available_dates: list[date],
+    time_slots: list[time],
+    schedule_service: ScheduleService,
+):
+    visit_date = available_dates[2]
+    visit_time = time_slots[2]
+    user = create_users[2]
+
+    await schedule_service.mark_slot_busy(
+        session=session,
+        visit_date=visit_date,
+        visit_time=visit_time,
+        user_telegram_id=user.telegram_id,
+    )
+
+    is_slot_available_after_book = await schedule_service.is_slot_available(
+        session=session,
+        visit_date=visit_date,
+        visit_time=visit_time,
+    )
+
+    assert is_slot_available_after_book is False
+
+    await schedule_service.cancel_booking(
+        session=session,
+        user_telegram_id=user.telegram_id,
+        datetime_to_cancel=datetime.combine(visit_date, visit_time),
+    )
+
+    is_slot_available_after_cancel = await schedule_service.is_slot_available(
+        session=session,
+        visit_date=visit_date,
+        visit_time=visit_time,
+    )
+
+    assert is_slot_available_after_cancel is True
+
+
+@pytest.mark.asyncio
+async def test_cancel_booking_wrong_user_does_not_cancel(
+    session: AsyncSession,
+    create_users: list[User],
+    available_dates: list[date],
+    time_slots: list[time],
+    schedule_service: ScheduleService,
+):
+    user_1 = create_users[0]
+    user_2 = create_users[1]
+    visit_date = available_dates[2]
+    visit_time = time_slots[2]
+
+    await schedule_service.mark_slot_busy(
+        session=session,
+        visit_date=visit_date,
+        visit_time=visit_time,
+        user_telegram_id=user_1.telegram_id,
+    )
+
+    with pytest.raises(BookingDeleteError):
+        await schedule_service.cancel_booking(
+            session=session,
+            user_telegram_id=user_2.telegram_id,
+            datetime_to_cancel=datetime.combine(visit_date, visit_time),
+        )
+
+    is_available = await schedule_service.is_slot_available(
+        session=session,
+        visit_date=visit_date,
+        visit_time=visit_time,
+    )
+    assert is_available is False
+
+
+@pytest.mark.asyncio
+async def test_cancel_booking_not_existing_raises_error(
+    session: AsyncSession,
+    create_users: list[User],
+    available_dates: list[date],
+    time_slots: list[time],
+    schedule_service: ScheduleService,
+):
+    user = create_users[0]
+    visit_date = available_dates[-1]
+    visit_time = time_slots[2]
+    visit_datetime = datetime.combine(visit_date, visit_time)
+
+    is_available = await schedule_service.is_slot_available(
+        session=session,
+        visit_date=visit_date,
+        visit_time=visit_time,
+    )
+    assert is_available is True
+
+    with pytest.raises(BookingDeleteError):
+        await schedule_service.cancel_booking(
+            session=session,
+            user_telegram_id=user.telegram_id,
+            datetime_to_cancel=visit_datetime,
         )

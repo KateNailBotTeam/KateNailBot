@@ -58,7 +58,7 @@ async def schedule_service():
 
 
 @pytest.fixture
-async def create_users(session: AsyncSession, users_quantity=3):
+async def create_users(session: AsyncSession, users_quantity=5):
     users = []
     for i in range(users_quantity):
         user = User(
@@ -69,12 +69,6 @@ async def create_users(session: AsyncSession, users_quantity=3):
             is_admin=False,
         )
         users.append(user)
-        print("CREATING USER")
-        print(user.telegram_id)
-        print(user.username)
-        print(user.first_name)
-        print(user.phone)
-        print(user.is_admin)
     session.add_all(users)
     await session.commit()
     return users

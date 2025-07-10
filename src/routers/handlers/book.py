@@ -4,6 +4,7 @@ from aiogram import F, Router
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import (
@@ -92,6 +93,9 @@ async def finish_booking(
 
             visit_date = datetime.strptime(visit_date_str, "%Y_%m_%d").date()
 
+            await session.execute(
+                text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            )
             await schedule_service.mark_slot_busy(
                 session=session,
                 visit_date=visit_date,
