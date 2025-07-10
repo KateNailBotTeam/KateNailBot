@@ -15,7 +15,7 @@ pydantic-settings = "^2.9.1"
 sqlalchemy = "^2.0.41"
 asyncpg = "^0.30.0"
 alembic = "^1.16.1"
-redis = "^4.5.0"
+redis = "^6.2.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.11.10"
@@ -56,6 +56,7 @@ select = [
     "TRY", # Обработка исключений (tryceratops)
 ]
 ignore = [
+    "TRY003", # указание сообщения в ошибке
     "RUF001", # Проверка на визуально похожие символы. (Ошибочно срабатывает на кириллице)
     "D", # pydocstyle (если не нужна проверка докстрингов)
 ]

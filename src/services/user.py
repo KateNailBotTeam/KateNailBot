@@ -3,11 +3,7 @@ import re
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.exceptions import (
-    InvalidFoundUserError,
-    InvalidPhoneFormatError,
-    PhoneAlreadyExistsError,
-)
+from src.exceptions import RegistrationError
 from src.models.user import User
 from src.services.base import BaseService
 
@@ -21,7 +17,7 @@ class UserService(BaseService[User]):
     @classmethod
     def check_valid_phone(cls, phone: str) -> None:
         if not re.fullmatch(cls.PHONE_REGEX, phone):
-            raise InvalidPhoneFormatError()
+            raise RegistrationError("Неверный формат номера. Используйте +7XXXXXXXXXX.")
 
     @staticmethod
     async def get_by_telegram_id(
@@ -54,9 +50,6 @@ class UserService(BaseService[User]):
         new_name: str,
         user: User,
     ) -> User:
-        if not user:
-            raise InvalidFoundUserError()
-
         if user.first_name == new_name:
             return user
 
@@ -64,7 +57,7 @@ class UserService(BaseService[User]):
             session=session, obj_id=user.id, new_data={"first_name": new_name}
         )
         if not updated_user:
-            raise InvalidFoundUserError()
+            raise RegistrationError("Пользователь не найден при обновлении данных.")
 
         return updated_user
 
@@ -74,15 +67,12 @@ class UserService(BaseService[User]):
         user: User,
         new_number: str,
     ) -> User:
-        if not user:
-            raise InvalidFoundUserError()
-
         self.check_valid_phone(new_number)
 
         stmt = select(User).where(User.phone == new_number, User.id != user.id)
         result = await session.execute(stmt)
         if result.scalar_one_or_none():
-            raise PhoneAlreadyExistsError()
+            raise RegistrationError("Этот номер уже используется")
 
         if user.phone == new_number:
             return user
@@ -91,6 +81,6 @@ class UserService(BaseService[User]):
             session=session, obj_id=user.id, new_data={"phone": new_number}
         )
         if not updated_user:
-            raise InvalidFoundUserError()
+            raise RegistrationError("Пользователь не найден при обновлении данных.")
 
         return user
