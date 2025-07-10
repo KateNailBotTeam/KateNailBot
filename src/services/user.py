@@ -37,6 +37,7 @@ class UserService(BaseService[User]):
         user = await self.get_by_telegram_id(session=session, telegram_id=telegram_id)
         if user:
             return user
+
         user = User(
             telegram_id=telegram_id,
             first_name=first_name,
@@ -69,11 +70,6 @@ class UserService(BaseService[User]):
     ) -> User:
         self.check_valid_phone(new_number)
 
-        stmt = select(User).where(User.phone == new_number, User.id != user.id)
-        result = await session.execute(stmt)
-        if result.scalar_one_or_none():
-            raise RegistrationError("Этот номер уже используется")
-
         if user.phone == new_number:
             return user
 
@@ -83,4 +79,4 @@ class UserService(BaseService[User]):
         if not updated_user:
             raise RegistrationError("Пользователь не найден при обновлении данных.")
 
-        return user
+        return updated_user

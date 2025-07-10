@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,8 +12,8 @@ class BaseService(Generic[ModelType]):
     def __init__(self, model: type[ModelType]) -> None:
         self.model = model
 
-    async def get(self, session: AsyncSession, obj_id: int) -> ModelType | None:
-        stmt = select(self.model).where(self.model.id == obj_id)
+    async def get(self, session: AsyncSession, **filters: Any) -> ModelType | None:  # noqa: ANN401
+        stmt = select(self.model).filter_by(**filters)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 

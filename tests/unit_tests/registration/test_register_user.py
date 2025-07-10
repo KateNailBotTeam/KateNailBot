@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.exceptions import InvalidFirstNameError, InvalidTelegramIdError
+from src.exceptions import RegistrationError
 from src.keyboards.start import InlineKeyboardMarkup, ask_about_name_kb
 from src.models.user import User
 from src.routers.commands.start import handle_start
@@ -162,10 +162,10 @@ async def test_finish_registration_success(
     [
         (
             {"telegram_id": "not_an_integer", "first_name": "John", "phone": None},
-            InvalidTelegramIdError,
+            RegistrationError,
         ),
-        ({"telegram_id": 123, "first_name": 123, "phone": None}, InvalidFirstNameError),
-        ({"telegram_id": 123, "first_name": "", "phone": None}, InvalidFirstNameError),
+        ({"telegram_id": 123, "first_name": 123, "phone": None}, RegistrationError),
+        ({"telegram_id": 123, "first_name": "", "phone": None}, RegistrationError),
     ],
 )
 async def test_finish_registration_errors(

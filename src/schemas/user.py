@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class UserSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: Annotated[int, Field(gt=0, description="User ID")]
     telegram_id: Annotated[
         int, Field(gt=0, description="user telegram id", examples=[123456789])
     ]
@@ -20,14 +21,11 @@ class UserSchema(BaseModel):
         ),
     ]
     first_name: Annotated[str, Field(max_length=100, description="User's first name")]
-    last_name: Annotated[
-        str | None, Field(default=None, max_length=100, description="User's last name")
-    ]
     phone: Annotated[
         str | None,
         Field(
             default=None,
-            max_length=20,
+            max_length=12,
             description="Phone number in format +7**********",
             examples=["+79001002030"],
         ),

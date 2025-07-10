@@ -7,6 +7,7 @@ from aiogram.utils import markdown
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.keyboards.start import ask_about_name_kb
+from src.schemas.user import UserSchema
 from src.services.user import UserService
 
 router = Router(name=__name__)
@@ -25,15 +26,18 @@ async def handle_start(
 
     telegram_id = message.from_user.id
 
-    user = await user_service.get_by_telegram_id(
-        session=session, telegram_id=telegram_id
+    user = await user_service.create_or_get_user(
+        session=session,
+        telegram_id=telegram_id,
+        first_name=message.from_user.first_name,
+    )
+    user_schema = UserSchema.model_validate(user)
+    await state.update_data(
+        telegram_id=telegram_id, first_name=user.first_name, user_schema=user_schema
     )
 
-    first_name = user.first_name if user else message.from_user.first_name
-    await state.update_data(telegram_id=telegram_id, first_name=first_name)
-
     await message.answer(
-        text=f"Как к вам обращаться?\nСейчас: {markdown.hbold(first_name)}",
+        text=f"Как к вам обращаться?\nСейчас: {markdown.hbold(user.first_name)}",
         reply_markup=ask_about_name_kb(),
         parse_mode=ParseMode.HTML,
     )

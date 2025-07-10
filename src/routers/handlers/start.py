@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions import RegistrationError
 from src.keyboards.start import ask_about_phone_kb
+from src.models import User
+from src.schemas.user import UserSchema
 from src.services.user import UserService
 from src.states.registration import RegistrationState
 
@@ -83,6 +85,7 @@ async def finish_registration(
     telegram_id = data.get("telegram_id")
     first_name = data.get("first_name")
     phone = data.get("phone")
+    user_schema = data.get("user_schema")
 
     if not isinstance(telegram_id, int):
         raise RegistrationError("Ошибка в telegram id")
@@ -90,11 +93,10 @@ async def finish_registration(
     if not isinstance(first_name, str) or not first_name:
         raise RegistrationError("Ошибка в first_name пользователя")
 
-    user = await user_service.create_or_get_user(
-        session=session,
-        telegram_id=telegram_id,
-        first_name=first_name,
-    )
+    if not isinstance(user_schema, UserSchema):
+        raise RegistrationError("Ошибка в получении пользователя из данных состояния")
+
+    user = User(**user_schema.model_dump())
 
     user = await user_service.update_name(
         session=session,
