@@ -3,12 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.exceptions import (
-    InvalidFirstNameError,
-    InvalidPhoneFormatError,
-    InvalidTelegramIdError,
-    PhoneAlreadyExistsError,
-)
+from src.exceptions import RegistrationError
 from src.keyboards.start import ask_about_phone_kb
 from src.services.user import UserService
 from src.states.registration import RegistrationState
@@ -74,15 +69,8 @@ async def save_phone(
         await state.update_data(phone=message.text)
         data = await state.get_data()
         await finish_registration(message, data, state, session, user_service)
-    except PhoneAlreadyExistsError:
-        await message.answer(
-            "Этот номер телефона уже зарегистрирован. Пожалуйста, введите другой номер:"
-        )
-    except InvalidPhoneFormatError:
-        await message.answer(
-            "Этот номер телефона не соответствует формату."
-            " Пожалуйста, введите другой номер:"
-        )
+    except RegistrationError as e:
+        print(e)
 
 
 async def finish_registration(
@@ -97,10 +85,10 @@ async def finish_registration(
     phone = data.get("phone")
 
     if not isinstance(telegram_id, int):
-        raise InvalidTelegramIdError()
+        raise RegistrationError("Ошибка в telegram id")
 
     if not isinstance(first_name, str) or not first_name:
-        raise InvalidFirstNameError()
+        raise RegistrationError("Ошибка в first_name пользователя")
 
     user = await user_service.create_or_get_user(
         session=session,
