@@ -17,4 +17,4 @@ class TokenNotFoundError(Exception):
         self.message = message
 
     def __str__(self) -> str:
-        return f"Ошибка регистрации: {self.message}"
+        return f"Ошибка токена: {self.message}"
