@@ -32,7 +32,6 @@ async def main() -> None:
     dp.include_routers(router)
     dp.update.middleware(DatabaseMiddleware())
     dp.update.middleware(UserServiceMiddleware())
-
     logging.basicConfig(level=logging.DEBUG)
 
     await dp.start_polling(bot)

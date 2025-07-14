@@ -44,39 +44,3 @@ class UserService(BaseService[User]):
         )
         created_user = await self.add(session=session, obj=user)
         return created_user
-
-    async def update_name(
-        self,
-        session: AsyncSession,
-        new_name: str,
-        user: User,
-    ) -> User:
-        if user.first_name == new_name:
-            return user
-
-        updated_user = await self.update(
-            session=session, obj_id=user.id, new_data={"first_name": new_name}
-        )
-        if not updated_user:
-            raise RegistrationError("Пользователь не найден при обновлении данных.")
-
-        return updated_user
-
-    async def update_number(
-        self,
-        session: AsyncSession,
-        user: User,
-        new_number: str,
-    ) -> User:
-        self.check_valid_phone(new_number)
-
-        if user.phone == new_number:
-            return user
-
-        updated_user = await self.update(
-            session=session, obj_id=user.id, new_data={"phone": new_number}
-        )
-        if not updated_user:
-            raise RegistrationError("Пользователь не найден при обновлении данных.")
-
-        return updated_user

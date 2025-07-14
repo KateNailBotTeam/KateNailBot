@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.exceptions import RegistrationError
 from src.keyboards.start import ask_about_phone_kb
 from src.models import User
-from src.schemas.user import UserSchema
 from src.services.user import UserService
 from src.states.registration import RegistrationState
 
@@ -57,7 +56,7 @@ async def skip_phone(
         await callback.answer()
         await state.update_data(phone=None)
         data = await state.get_data()
-        await finish_registration(callback.message, data, state, session, user_service)
+        await finish_registration(callback, data, state, session, user_service)
 
 
 @router.message(RegistrationState.waiting_for_phone)
@@ -76,7 +75,7 @@ async def save_phone(
 
 
 async def finish_registration(
-    message: Message,
+    obj: CallbackQuery | Message,
     data: dict,
     state: FSMContext,
     session: AsyncSession,
@@ -85,7 +84,7 @@ async def finish_registration(
     telegram_id = data.get("telegram_id")
     first_name = data.get("first_name")
     phone = data.get("phone")
-    user_schema = data.get("user_schema")
+    user_schema_dict = data.get("user_schema_dict")
 
     if not isinstance(telegram_id, int):
         raise RegistrationError("Ошибка в telegram id")
@@ -93,26 +92,36 @@ async def finish_registration(
     if not isinstance(first_name, str) or not first_name:
         raise RegistrationError("Ошибка в first_name пользователя")
 
-    if not isinstance(user_schema, UserSchema):
+    if not isinstance(user_schema_dict, dict):
         raise RegistrationError("Ошибка в получении пользователя из данных состояния")
 
-    user = User(**user_schema.model_dump())
+    user = User(**user_schema_dict)
 
-    user = await user_service.update_name(
-        session=session,
-        user=user,
-        new_name=first_name,
+    data = {}
+
+    if user.first_name != first_name:
+        data["first_name"] = first_name
+
+    if phone and user.phone != phone:
+        data["phone"] = phone
+
+    updated_user = await user_service.update(
+        session=session, obj_id=user.id, new_data=data
     )
 
-    if phone:
-        user = await user_service.update_number(
-            session=session, user=user, new_number=phone
-        )
+    if not updated_user:
+        raise RegistrationError("Невозможно обновить несуществующего пользователя")
 
-    await message.answer(
-        f"Вы зарегистрированы!\nИмя: {user.first_name}\n"
-        f"Телефон: {user.phone or 'не указан'}"
+    text = (
+        f"Вы зарегистрированы!\nИмя: {updated_user.first_name}\n"
+        f"Телефон: {updated_user.phone or 'не указан'}"
     )
+
+    if isinstance(obj, CallbackQuery) and isinstance(obj.message, Message):
+        await obj.message.edit_text(text=text, reply_markup=None)
+        await obj.answer()
+    elif isinstance(obj, Message):
+        await obj.answer(text)
 
     # Очистка состояния FSM
     await state.clear()

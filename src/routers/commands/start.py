@@ -31,9 +31,11 @@ async def handle_start(
         telegram_id=telegram_id,
         first_name=message.from_user.first_name,
     )
-    user_schema = UserSchema.model_validate(user)
+    user_schema_dict = UserSchema.model_validate(user).model_dump(mode="json")
     await state.update_data(
-        telegram_id=telegram_id, first_name=user.first_name, user_schema=user_schema
+        telegram_id=telegram_id,
+        first_name=user.first_name,
+        user_schema_dict=user_schema_dict,
     )
 
     await message.answer(

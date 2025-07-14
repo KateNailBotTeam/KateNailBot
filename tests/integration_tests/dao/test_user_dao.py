@@ -153,7 +153,7 @@ async def test_get_user_by_id(
     dao = UserService()
 
     created_user = await dao.add(session=session, obj=user)
-    get_user = await dao.get(session=session, obj_id=created_user.id)
+    get_user = await dao.get(session=session, id=created_user.id)
 
     assert get_user is not None, "User not found"
     assert get_user.telegram_id == telegram_id
@@ -183,11 +183,11 @@ async def test_fail_get_user_by_id(
     dao = UserService()
 
     if expected_exception is None:
-        result = await dao.get(session=session, obj_id=invalid_id)
+        result = await dao.get(session=session, id=invalid_id)
         assert result is None
     else:
         with pytest.raises(expected_exception):
-            await dao.get(session=session, obj_id=invalid_id)
+            await dao.get(session=session, id=invalid_id)
 
 
 @pytest.mark.parametrize(
@@ -278,5 +278,5 @@ async def test_delete_user(
 
     assert result is test_result
 
-    user_after = await dao.get(session=session, obj_id=obj_id_to_delete)
+    user_after = await dao.get(session=session, id=obj_id_to_delete)
     assert user_after is None

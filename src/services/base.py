@@ -26,7 +26,7 @@ class BaseService(Generic[ModelType]):
     async def update(
         self, session: AsyncSession, obj_id: int, new_data: dict
     ) -> ModelType | None:
-        obj = await self.get(session=session, obj_id=obj_id)
+        obj = await self.get(session=session, id=obj_id)
         if not obj:
             return None
         for k, v in new_data.items():
@@ -37,7 +37,7 @@ class BaseService(Generic[ModelType]):
         return obj
 
     async def delete(self, session: AsyncSession, obj_id: int) -> bool:
-        obj = await self.get(session=session, obj_id=obj_id)
+        obj = await self.get(session=session, id=obj_id)
         if not obj:
             return False
         await session.delete(obj)

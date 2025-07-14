@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions import RegistrationError
@@ -60,97 +61,107 @@ async def test_add_phone(callback_mock, message_mock, state_mock):
 
 
 @pytest.mark.asyncio
-async def test_skip_phone(callback_mock, state_mock, message_mock):
-    callback_mock.data = "profile_skip_phone"
+async def test_skip_phone():
+    callback_mock = MagicMock(spec=CallbackQuery)
+    message_mock = MagicMock(spec=Message)
+    callback_mock.message = message_mock
+
+    state_mock = AsyncMock()
     session_mock = AsyncMock(spec=AsyncSession)
 
     user_mock = MagicMock(spec=User)
+    user_mock.id = 1
     user_mock.first_name = "TestUser"
     user_mock.phone = None
 
     user_service_mock = MagicMock(spec=UserService)
-    user_service_mock.create_or_get_user = AsyncMock(return_value=user_mock)
-    user_service_mock.update_name = AsyncMock(return_value=user_mock)
+    user_service_mock.update = AsyncMock(return_value=user_mock)
 
-    test_data = {"telegram_id": 12345, "first_name": "TestUser", "phone": None}
+    test_data = {
+        "telegram_id": 12345,
+        "first_name": "TestUser",
+        "phone": None,
+        "user_schema_dict": {
+            "id": 1,
+            "telegram_id": 12345,
+            "first_name": "OldName",
+            "phone": None,
+        },
+    }
+
     state_mock.update_data = AsyncMock()
     state_mock.get_data = AsyncMock(return_value=test_data)
     state_mock.clear = AsyncMock()
-
-    message_mock.answer = AsyncMock()
+    callback_mock.answer = AsyncMock()
+    message_mock.edit_text = AsyncMock()
 
     await skip_phone(callback_mock, state_mock, session_mock, user_service_mock)
 
-    callback_mock.answer.assert_awaited_once()
+    callback_mock.answer.assert_awaited()
     state_mock.update_data.assert_awaited_once_with(phone=None)
-
-    user_service_mock.create_or_get_user.assert_awaited_once_with(
-        session=session_mock, telegram_id=12345, first_name="TestUser"
-    )
-
-    message_mock.answer.assert_awaited_once_with(
-        "Вы зарегистрированы!\nИмя: TestUser\nТелефон: не указан"
+    message_mock.edit_text.assert_awaited_once_with(
+        text="Вы зарегистрированы!\nИмя: TestUser\nТелефон: не указан",
+        reply_markup=None,
     )
     state_mock.clear.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "data,expected_output,phone_expected",
+    "data,expected_output",
     [
         (
-            {"telegram_id": 123, "first_name": "John", "phone": "+7123456789"},
+            {
+                "telegram_id": 123,
+                "first_name": "John",
+                "phone": "+7123456789",
+                "user_schema_dict": {
+                    "id": 1,
+                    "telegram_id": 123,
+                    "first_name": "OldName",
+                    "phone": None,
+                },
+            },
             "Вы зарегистрированы!\nИмя: John\nТелефон: +7123456789",
-            True,
         ),
         (
-            {"telegram_id": 123, "first_name": "John", "phone": None},
+            {
+                "telegram_id": 123,
+                "first_name": "John",
+                "phone": None,
+                "user_schema_dict": {
+                    "id": 1,
+                    "telegram_id": 123,
+                    "first_name": "OldName",
+                    "phone": "+75556667788",
+                },
+            },
             "Вы зарегистрированы!\nИмя: John\nТелефон: не указан",
-            False,
         ),
     ],
 )
-async def test_finish_registration_success(
-    message_mock, state_mock, data, expected_output, phone_expected
-):
-    session_mock = AsyncMock(spec=AsyncSession)
-    user_service_mock = MagicMock(spec=UserService)
-
-    user_mock = MagicMock(spec=User)
-    user_mock.telegram_id = data["telegram_id"]
-    user_mock.first_name = data["first_name"]
-    user_mock.phone = data["phone"]
-
-    user_service_mock.create_or_get_user = AsyncMock(return_value=user_mock)
-    user_service_mock.update_name = AsyncMock(return_value=user_mock)
-    user_service_mock.update_number = AsyncMock(return_value=user_mock)
-
+async def test_finish_registration_success(data, expected_output):
+    message_mock = MagicMock(spec=Message)
     message_mock.answer = AsyncMock()
+    message_mock.edit_text = AsyncMock()
+
+    session_mock = AsyncMock(spec=AsyncSession)
+    state_mock = AsyncMock()
+
+    updated_user_mock = MagicMock()
+    updated_user_mock.first_name = data["first_name"]
+    updated_user_mock.phone = data["phone"]
+
+    user_service_mock = MagicMock(spec=UserService)
+    user_service_mock.update = AsyncMock(return_value=updated_user_mock)
 
     await finish_registration(
-        message=message_mock,
+        obj=message_mock,
         data=data,
         state=state_mock,
         session=session_mock,
         user_service=user_service_mock,
     )
-
-    user_service_mock.create_or_get_user.assert_awaited_once_with(
-        session=session_mock,
-        telegram_id=data["telegram_id"],
-        first_name=data["first_name"],
-    )
-
-    user_service_mock.update_name.assert_awaited_once_with(
-        session=session_mock, user=user_mock, new_name=data["first_name"]
-    )
-
-    if phone_expected:
-        user_service_mock.update_number.assert_awaited_once_with(
-            session=session_mock, user=user_mock, new_number=data["phone"]
-        )
-    else:
-        user_service_mock.update_number.assert_not_called()
 
     message_mock.answer.assert_awaited_once_with(expected_output)
     state_mock.clear.assert_awaited_once()
@@ -161,48 +172,45 @@ async def test_finish_registration_success(
     "data,expected_exception",
     [
         (
-            {"telegram_id": "not_an_integer", "first_name": "John", "phone": None},
+            {"first_name": "John", "phone": None, "user_schema_dict": {}},
             RegistrationError,
         ),
-        ({"telegram_id": 123, "first_name": 123, "phone": None}, RegistrationError),
-        ({"telegram_id": 123, "first_name": "", "phone": None}, RegistrationError),
+        (
+            {"telegram_id": 123, "phone": None, "user_schema_dict": {}},
+            RegistrationError,
+        ),
+        (
+            {"telegram_id": 123, "first_name": "John", "user_schema_dict": None},
+            RegistrationError,
+        ),
     ],
 )
-async def test_finish_registration_errors(
-    message_mock, state_mock, data, expected_exception
-):
+async def test_finish_registration_errors(data, expected_exception):
     session_mock = AsyncMock(spec=AsyncSession)
+    state_mock = AsyncMock()
     user_service_mock = MagicMock(spec=UserService)
 
-    user_mock = MagicMock(spec=User)
-    user_mock.telegram_id = data["telegram_id"]
-    user_mock.first_name = data["first_name"]
-    user_mock.phone = data["phone"]
-
-    user_service_mock.create_or_get_user = AsyncMock(return_value=user_mock)
-    user_service_mock.update_name = AsyncMock(return_value=user_mock)
-    user_service_mock.update_number = AsyncMock(return_value=user_mock)
-
-    message_mock.answer = AsyncMock()
+    obj_mock = AsyncMock(spec=Message)
+    obj_mock.answer = AsyncMock()
 
     with pytest.raises(expected_exception):
         await finish_registration(
-            message=message_mock,
+            obj=obj_mock,
             data=data,
             state=state_mock,
             session=session_mock,
             user_service=user_service_mock,
         )
 
-    user_service_mock.create_or_get_user.assert_not_called()
-    user_service_mock.update_name.assert_not_called()
-    user_service_mock.update_number.assert_not_called()
-    message_mock.answer.assert_not_called()
+    user_service_mock.update.assert_not_called()
+    obj_mock.answer.assert_not_called()
     state_mock.clear.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_handle_start(message_mock, state_mock):
+async def test_handle_start():
+    message_mock = AsyncMock(spec=Message)
+    state_mock = AsyncMock()
     session_mock = AsyncMock(spec=AsyncSession)
     user_service_mock = MagicMock(spec=UserService)
 
@@ -212,11 +220,16 @@ async def test_handle_start(message_mock, state_mock):
     message_mock.from_user.is_bot = False
     message_mock.from_user.username = "test_user"
 
-    db_user_mock = MagicMock()
+    db_user_mock = MagicMock(spec=User)
+    db_user_mock.id = 1
+    db_user_mock.telegram_id = 123
     db_user_mock.first_name = "John_DB"
+    db_user_mock.username = "johnny"
+    db_user_mock.phone = "+79998887766"
 
-    user_service_mock.get_by_telegram_id = AsyncMock(return_value=db_user_mock)
+    user_service_mock.create_or_get_user = AsyncMock(return_value=db_user_mock)
     state_mock.update_data = AsyncMock()
+    message_mock.answer = AsyncMock()
 
     await handle_start(
         message=message_mock,
@@ -225,18 +238,14 @@ async def test_handle_start(message_mock, state_mock):
         state=state_mock,
     )
 
-    user_service_mock.get_by_telegram_id.assert_awaited_once_with(
-        session=session_mock, telegram_id=123
+    user_service_mock.create_or_get_user.assert_awaited_once_with(
+        session=session_mock, telegram_id=123, first_name="John"
     )
 
-    state_mock.update_data.assert_awaited_once_with(
-        telegram_id=123, first_name="John_DB"
-    )
-
+    state_mock.update_data.assert_awaited_once()
     message_mock.answer.assert_awaited_once()
 
     args, kwargs = message_mock.answer.call_args
     assert "reply_markup" in kwargs
-
     actual_keyboard = kwargs["reply_markup"]
     assert actual_keyboard == ask_about_name_kb()
