@@ -70,9 +70,9 @@ async def save_phone(
     session: AsyncSession,
     user_service: UserService,
 ) -> None:
+    await state.update_data(phone=message.text)
+    data = await state.get_data()
     try:
-        await state.update_data(phone=message.text)
-        data = await state.get_data()
         await finish_registration(message, data, state, session, user_service)
     except PhoneAlreadyExistsError:
         await message.answer(

@@ -76,7 +76,30 @@ class ScheduleService(BaseService[Schedule]):
 
         return bool(booked is None or booked is False)
 
-    async def mark_slot_busy(
+    @staticmethod
+    async def get_booking_slots_for_date(
+        session: AsyncSession,
+        visit_date: date,
+    ) -> list[datetime]:
+        start_datetime = datetime.combine(visit_date, time.min)
+        end_datetime = datetime.combine(visit_date, time.max)
+
+        stmt = (
+            select(Schedule.visit_datetime)
+            .where(
+                and_(
+                    Schedule.visit_datetime.between(start_datetime, end_datetime),
+                    Schedule.is_booked,
+                )
+            )
+            .order_by(Schedule.visit_datetime)
+        )
+
+        result = await session.execute(stmt)
+
+        return list(result.scalars().all())
+
+    async def create_busy_slot(
         self,
         session: AsyncSession,
         visit_date: date,

@@ -3,6 +3,9 @@ from collections import defaultdict
 from datetime import date, time
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.services.schedule import ScheduleService
 
 RU_MONTHS = {
     1: "Январь",
@@ -75,18 +78,34 @@ def create_calendar_for_available_dates(dates: list[date]) -> InlineKeyboardMark
     return InlineKeyboardMarkup(inline_keyboard=full_kb)
 
 
-def create_choose_time_keyboard(time_slots: list[time]) -> InlineKeyboardMarkup:
+async def create_choose_time_keyboard(
+    time_slots: list[time],
+    session: AsyncSession,
+    schedule_service: ScheduleService,
+    visit_date: date,
+) -> InlineKeyboardMarkup:
+    busy_datetimes = await schedule_service.get_booking_slots_for_date(
+        session=session, visit_date=visit_date
+    )
+    busy_times = {value.time() for value in busy_datetimes}
+
     kb = []
     for time_slot in time_slots:
         time_to_text = time_slot.strftime("%H:%M")
+        is_available = time_slot not in busy_times
         kb.append(
             [
                 InlineKeyboardButton(
-                    text=f"{time_to_text}",
-                    callback_data=f"timeline_{time_to_text}",
+                    text=f"🟢 {time_to_text}"
+                    if is_available
+                    else f"🔴 Время {time_to_text} занято",
+                    callback_data=f"timeline_{time_to_text}"
+                    if is_available
+                    else "unavailable_time",
                 )
             ]
         )
+
     kb.append([InlineKeyboardButton(text="ВЫХОД", callback_data="cancel")])
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard

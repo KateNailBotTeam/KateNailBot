@@ -21,7 +21,7 @@ from src.services.schedule import ScheduleService
 @patch.object(ScheduleService, "WORKING_DAYS", (0, 1, 2, 3, 4))
 @pytest.mark.asyncio
 async def test_show_user_schedules(
-    mock_datetime,  # <-- ЭТО ВАЖНО
+    mock_datetime,
     session: AsyncSession,
     schedule_service: ScheduleService,
     create_users: list[User],
@@ -139,7 +139,7 @@ async def test_is_slot_available_with_invalid_dates(
     )
 
     with pytest.raises(expected_error):
-        await schedule_service.mark_slot_busy(
+        await schedule_service.create_busy_slot(
             session=session,
             visit_date=test_date,
             visit_time=time_slots[0],
@@ -178,7 +178,7 @@ async def test_is_slot_available_with_invalid_time(
         ).time()
 
     with pytest.raises(expected_error):
-        await schedule_service.mark_slot_busy(
+        await schedule_service.create_busy_slot(
             session=session,
             visit_date=visit_date,
             visit_time=visit_time,
@@ -187,7 +187,7 @@ async def test_is_slot_available_with_invalid_time(
 
 
 @pytest.mark.asyncio
-async def test_mark_slot_busy(
+async def test_create_busy_slot(
     session: AsyncSession,
     create_users: list[User],
     schedule_service: ScheduleService,
@@ -202,7 +202,7 @@ async def test_mark_slot_busy(
         "Слот должен быть свободен перед тестом"
     )
 
-    await schedule_service.mark_slot_busy(
+    await schedule_service.create_busy_slot(
         session=session,
         visit_date=visit_date,
         visit_time=visit_time,
@@ -229,7 +229,7 @@ async def test_mark_slot_busy(
 
 
 @pytest.mark.asyncio
-async def test_mark_slot_busy_already_booked(
+async def test_create_busy_slot_already_booked(
     session: AsyncSession,
     create_users: list[User],
     schedule_service: ScheduleService,
@@ -245,7 +245,7 @@ async def test_mark_slot_busy_already_booked(
         "Слот должен быть свободен перед тестом"
     )
 
-    await schedule_service.mark_slot_busy(
+    await schedule_service.create_busy_slot(
         session=session,
         visit_date=visit_date,
         visit_time=visit_time,
@@ -253,7 +253,7 @@ async def test_mark_slot_busy_already_booked(
     )
 
     with pytest.raises(SlotAlreadyBookedError):
-        await schedule_service.mark_slot_busy(
+        await schedule_service.create_busy_slot(
             session=session,
             visit_date=visit_date,
             visit_time=visit_time,
@@ -273,7 +273,7 @@ async def test_cancel_booking(
     visit_time = time_slots[2]
     user = create_users[2]
 
-    await schedule_service.mark_slot_busy(
+    await schedule_service.create_busy_slot(
         session=session,
         visit_date=visit_date,
         visit_time=visit_time,
@@ -316,7 +316,7 @@ async def test_cancel_booking_wrong_user_does_not_cancel(
     visit_date = available_dates[2]
     visit_time = time_slots[2]
 
-    await schedule_service.mark_slot_busy(
+    await schedule_service.create_busy_slot(
         session=session,
         visit_date=visit_date,
         visit_time=visit_time,
