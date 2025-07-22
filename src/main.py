@@ -15,33 +15,32 @@ from src.static_commands import commands
 
 async def main() -> None:
     token = settings.BOT_TOKEN
-    if token:
-        redis = Redis(
-            host=settings.REDIS_HOST,
-            password=settings.REDIS_PASSWORD,
-            port=settings.REDIS_PORT,
-            db=settings.REDIS_DATABASE,
-            decode_responses=True,
-        )
-        storage = RedisStorage(redis=redis)
 
-        bot = Bot(token=token)
-        dp = Dispatcher(storage=storage)
+    redis = Redis(
+        host=settings.REDIS_HOST,
+        password=settings.REDIS_PASSWORD,
+        port=settings.REDIS_PORT,
+        db=settings.REDIS_DATABASE,
+        decode_responses=True,
+    )
+    storage = RedisStorage(redis=redis)
 
-        dp.include_routers(router)
-        dp.update.middleware(DatabaseMiddleware())
-        dp.update.middleware(UserServiceMiddleware())
-        dp.update.middleware(ScheduleServiceMiddleware())
+    bot = Bot(token=token)
+    dp = Dispatcher(storage=storage)
 
-        logging.basicConfig(
-            level=logging.DEBUG,
-            datefmt="%Y-%m-%d %H:%M:%S",
-            format="[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d"
-            " %(levelname)-7s - %(message)s",
-        )
+    dp.include_routers(router)
+    dp.update.middleware(DatabaseMiddleware())
+    dp.update.middleware(UserServiceMiddleware())
+    dp.update.middleware(ScheduleServiceMiddleware())
 
-        await dp.start_polling(bot)
-        await bot.set_my_commands(commands=commands)
+    logging.basicConfig(
+        level=logging.DEBUG,
+        datefmt="%Y-%m-%d %H:%M:%S",
+        format="[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d"
+        " %(levelname)-7s - %(message)s",
+    )
+    await dp.start_polling(bot)
+    await bot.set_my_commands(commands=commands)
 
 
 if __name__ == "__main__":
