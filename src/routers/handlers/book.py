@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from aiogram import F, Router
@@ -7,10 +8,8 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import (
-    BookingDateNotFoundError,
     BookingError,
     InvalidCallbackError,
-    UserTelegramIDNotFoundError,
 )
 from src.keyboards.book import create_booking_list_kb, create_confirm_cancel_booking_kb
 from src.keyboards.calendar import (
@@ -22,13 +21,16 @@ from src.states.cancel_booking import CancelBooking
 from src.states.choose_visit_datetime import ChooseVisitDatetime
 
 router = Router(name=__name__)
+logger = logging.getLogger(__name__)
 
 
 @router.callback_query(F.data == "book")
 async def show_days(
     callback: CallbackQuery, state: FSMContext, schedule_service: ScheduleService
 ) -> None:
+    logger.info("Пользователь %s начал бронирование.", callback.from_user.id)
     if not isinstance(callback.message, Message):
+        logger.warning("callback.message не является Message")
         raise InvalidCallbackError("callback.message должен быть объектом Message")
     await callback.answer()
 
@@ -52,7 +54,9 @@ async def show_time(
     session: AsyncSession,
     schedule_service: ScheduleService,
 ) -> None:
+    logger.info("Пользователь %s выбрал дату для записи.", callback.from_user.id)
     if not isinstance(callback.message, Message) or not isinstance(callback.data, str):
+        logger.warning("Ошибка в данных Callback при выборе времени")
         raise InvalidCallbackError("ошибка в данных Callback")
     await callback.answer()
 
@@ -89,42 +93,49 @@ async def finish_booking(
     schedule_service: ScheduleService,
     session: AsyncSession,
 ) -> None:
+    logger.info("Пользователь %s выбирает время для записи.", callback.from_user.id)
     if not isinstance(callback.message, Message) or not isinstance(callback.data, str):
+        logger.warning("Ошибка в данных Callback при подтверждении записи")
         raise InvalidCallbackError("ошибка в данных Callback")
-    try:
-        await callback.answer()
 
-        visit_time_str = callback.data.replace("timeline_", "")
-        visit_time = datetime.strptime(visit_time_str, "%H:%M").time()
+    await callback.answer()
 
-        data = await state.get_data()
-        visit_date_str = data.get("visit_date_str")
-        user_telegram_id = data.get("telegram_id")
+    visit_time_str = callback.data.replace("timeline_", "")
+    visit_time = datetime.strptime(visit_time_str, "%H:%M").time()
 
-        if not visit_date_str:
-            raise BookingDateNotFoundError()
+    data = await state.get_data()
+    visit_date_str = data.get("visit_date_str")
+    user_telegram_id = data.get("telegram_id")
 
-        if not user_telegram_id:
-            raise UserTelegramIDNotFoundError()
+    if not visit_date_str:
+        logger.warning("Дата %s не найдена", visit_date_str)
+        raise BookingError(f"Дата {visit_date_str} не найдена")
 
-        visit_date = datetime.strptime(visit_date_str, "%Y_%m_%d").date()
+    if not user_telegram_id:
+        logger.warning("Телеграм id пользователя не найден.")
+        raise BookingError("Телеграм id пользователя не найден.")
 
-        await schedule_service.create_busy_slot(
-            session=session,
-            visit_date=visit_date,
-            visit_time=visit_time,
-            user_telegram_id=user_telegram_id,
-        )
+    visit_date = datetime.strptime(visit_date_str, "%Y_%m_%d").date()
 
-        await callback.message.edit_text(
-            text=f"✅ Вы успешно записаны на"
-            f" <b>{visit_date.strftime('%d.%m.%Y')}</b>,"
-            f" время <b>{visit_time.strftime('%H:%M')}</b>",
-            parse_mode=ParseMode.HTML,
-        )
+    await schedule_service.create_busy_slot(
+        session=session,
+        visit_date=visit_date,
+        visit_time=visit_time,
+        user_telegram_id=user_telegram_id,
+    )
 
-    except BookingError as e:
-        await callback.message.edit_text(text=f"Ошибка при записи. {e}")
+    await callback.message.edit_text(
+        text=f"✅ Вы успешно записаны на"
+        f" <b>{visit_date.strftime('%d.%m.%Y')}</b>,"
+        f" время <b>{visit_time.strftime('%H:%M')}</b>",
+        parse_mode=ParseMode.HTML,
+    )
+    logger.info(
+        "Пользователь %s успешно записан на %s %s",
+        user_telegram_id,
+        visit_date,
+        visit_time,
+    )
 
     await state.clear()
 
@@ -134,7 +145,12 @@ async def my_bookings(
     callback: CallbackQuery, schedule_service: ScheduleService, session: AsyncSession
 ) -> None:
     if not isinstance(callback.message, Message):
-        raise InvalidCallbackError("callback.message должен быть объектом Message")
+        logger.warning(
+            "Ошибка в данных Callback при получении бронирований пользователя"
+        )
+        raise InvalidCallbackError("ошибка в данных Callback")
+
+    logger.info("Пользователь %s просматривает свои записи.", callback.from_user.id)
     user_telegram_id = callback.from_user.id
     schedules = await schedule_service.show_user_schedules(
         session=session, user_telegram_id=user_telegram_id
@@ -172,7 +188,9 @@ async def choose_date_for_cancel_booking(
     schedule_service: ScheduleService,
     state: FSMContext,
 ) -> None:
+    logger.info("Пользователь %s начал отмену записи.", callback.from_user.id)
     if not isinstance(callback.message, Message):
+        logger.warning("callback.message не является Message")
         raise InvalidCallbackError("callback.message должен быть объектом Message")
     user_telegram_id = callback.from_user.id
     schedules = await schedule_service.show_user_schedules(
@@ -204,7 +222,9 @@ async def confirm_cancel_booking(
     callback: CallbackQuery,
     state: FSMContext,
 ) -> None:
+    logger.info("Пользователь %s подтверждает отмену записи.", callback.from_user.id)
     if not isinstance(callback.message, Message) or not isinstance(callback.data, str):
+        logger.warning("Ошибка в данных Callback при подтверждении отмены")
         raise InvalidCallbackError("ошибка в данных Callback")
     datetime_str_to_cancel = callback.data.replace("cancel_", "")
     datetime_to_cancel = datetime.strptime(datetime_str_to_cancel, "%Y-%m-%d %H:%M:%S")
@@ -230,47 +250,53 @@ async def cancel_booking(
     schedule_service: ScheduleService,
     session: AsyncSession,
 ) -> None:
+    logger.info("Пользователь %s завершает отмену записи.", callback.from_user.id)
     if not isinstance(callback.message, Message) or not isinstance(callback.data, str):
+        logger.warning("Ошибка в данных Callback при завершении отмены")
         raise InvalidCallbackError("ошибка в данных Callback")
-    try:
-        data = await state.get_data()
-        datetime_str_to_cancel = data.get("datetime_str_to_cancel")
-        user_telegram_id = data.get("user_telegram_id")
 
-        if not datetime_str_to_cancel:
-            raise BookingDateNotFoundError()
+    data = await state.get_data()
+    datetime_str_to_cancel = data.get("datetime_str_to_cancel")
+    user_telegram_id = data.get("user_telegram_id")
 
-        if not user_telegram_id:
-            raise UserTelegramIDNotFoundError()
+    if not datetime_str_to_cancel:
+        raise BookingError("Не найдена дата для отмены")
 
-        datetime_to_cancel = datetime.strptime(
-            datetime_str_to_cancel, "%Y-%m-%d %H:%M:%S"
+    if not user_telegram_id:
+        raise BookingError("Не найден user_telegram_id для отмены")
+
+    datetime_to_cancel = datetime.strptime(datetime_str_to_cancel, "%Y-%m-%d %H:%M:%S")
+
+    if callback.data == "confirm_yes":
+        await schedule_service.cancel_booking(
+            session=session,
+            user_telegram_id=user_telegram_id,
+            datetime_to_cancel=datetime_to_cancel,
         )
 
-        if callback.data == "confirm_yes":
-            await schedule_service.cancel_booking(
-                session=session,
-                user_telegram_id=user_telegram_id,
-                datetime_to_cancel=datetime_to_cancel,
-            )
+        await callback.message.edit_text(
+            text=f"✖️ Запись 🗓 <b>{datetime_to_cancel.strftime('%d.%m.%y')}</b>"
+            f" в <b>{datetime_to_cancel.strftime('%H:%M')}</b>"
+            f" успешно удалена.",
+            parse_mode=ParseMode.HTML,
+        )
+        logger.info(
+            "Пользователь %s отменил запись на %s",
+            user_telegram_id,
+            datetime_to_cancel,
+        )
+    else:
+        await callback.message.edit_text(
+            text=f"Ваша запись 🗓"
+            f" <b>{datetime_to_cancel.strftime('%d.%m.%y')}</b>"
+            f" в <b>{datetime_to_cancel.strftime('%H:%M')}</b>"
+            f" остаётся без изменений.",
+            parse_mode=ParseMode.HTML,
+        )
+        logger.info(
+            "Пользователь %s отказался отменять запись на %s",
+            user_telegram_id,
+            datetime_to_cancel,
+        )
 
-            await callback.message.edit_text(
-                text=f"✖️ Запись 🗓 <b>{datetime_to_cancel.strftime('%d.%m.%y')}</b>"
-                f" в <b>{datetime_to_cancel.strftime('%H:%M')}</b>"
-                f" успешно удалена.",
-                parse_mode=ParseMode.HTML,
-            )
-        else:
-            await callback.message.edit_text(
-                text=f"Ваша запись 🗓"
-                f" <b>{datetime_to_cancel.strftime('%d.%m.%y')}</b>"
-                f" в <b>{datetime_to_cancel.strftime('%H:%M')}</b>"
-                f" остаётся без изменений.",
-                parse_mode=ParseMode.HTML,
-            )
-
-    except BookingError as e:
-        await callback.message.edit_text(text=f"{e}")
-
-    finally:
-        await state.clear()
+    await state.clear()
