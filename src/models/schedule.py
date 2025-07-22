@@ -34,3 +34,7 @@ class Schedule(Base):
         default=None,
         server_default=text("NULL"),
     )
+
+    is_approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=True, default=None, server_default=text("NULL")
+    )
