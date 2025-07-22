@@ -1,6 +1,11 @@
 import calendar
+from collections import defaultdict
+from datetime import date, time
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.services.schedule import ScheduleService
 
 RU_MONTHS = {
     1: "Январь",
@@ -18,44 +23,25 @@ RU_MONTHS = {
 }
 
 
-def create_choose_month_keyboard(message: Message) -> InlineKeyboardMarkup:
-    this_month = message.date.month
-    next_month = (this_month % 12) + 1
-
-    kb = [
-        [
-            InlineKeyboardButton(
-                text=f"📆 {RU_MONTHS[this_month]}", callback_data=f"month_{this_month}"
-            ),
-            InlineKeyboardButton(
-                text=f"➡️ {RU_MONTHS[next_month]}", callback_data=f"month_{next_month}"
-            ),
-        ]
-    ]
-
-    return InlineKeyboardMarkup(inline_keyboard=kb)
-
-
-def create_choose_day_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
+def build_calendar_section(
+    year: int, month: int, available_days: set[int]
+) -> list[list[InlineKeyboardButton]]:
     cal = calendar.Calendar(firstweekday=0)
     month_days = cal.monthdayscalendar(year, month)
 
-    kb = []
+    kb: list[list[InlineKeyboardButton]] = []
 
     kb.append(
         [
             InlineKeyboardButton(
-                text=f"📅 {RU_MONTHS.get(month, 'Нет данных')}", callback_data="ignore"
+                text=f"📅 {RU_MONTHS[month]} {year}", callback_data="ignore"
             )
         ]
     )
 
     weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
     kb.append(
-        [
-            InlineKeyboardButton(text=f"{day}", callback_data="ignore")
-            for day in weekdays
-        ]
+        [InlineKeyboardButton(text=day, callback_data="ignore") for day in weekdays]
     )
 
     for week in month_days:
@@ -63,25 +49,63 @@ def create_choose_day_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
         for day in week:
             if day == 0:
                 row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
-            else:
+            elif day in available_days:
                 row.append(
-                    InlineKeyboardButton(text=f"{day}", callback_data=f"day_{day}")
+                    InlineKeyboardButton(
+                        text=str(day), callback_data=f"choose_date_{year}_{month}_{day}"
+                    )
                 )
+            else:
+                row.append(InlineKeyboardButton(text="▫️", callback_data="ignore"))
         kb.append(row)
 
-    return InlineKeyboardMarkup(inline_keyboard=kb)
+    return kb
 
 
-def create_choose_time_keyboard() -> InlineKeyboardMarkup:
+def create_calendar_for_available_dates(dates: list[date]) -> InlineKeyboardMarkup:
+    grouped: dict[tuple[int, int], set[int]] = defaultdict(set)
+    for d in dates:
+        grouped[(d.year, d.month)].add(d.day)
+
+    full_kb: list[list[InlineKeyboardButton]] = []
+
+    for year, month in sorted(grouped):
+        kb_section = build_calendar_section(year, month, grouped[(year, month)])
+        full_kb.extend(kb_section)
+
+    full_kb.append([InlineKeyboardButton(text="ВЫХОД", callback_data="cancel")])
+
+    return InlineKeyboardMarkup(inline_keyboard=full_kb)
+
+
+async def create_choose_time_keyboard(
+    time_slots: list[time],
+    session: AsyncSession,
+    schedule_service: ScheduleService,
+    visit_date: date,
+) -> InlineKeyboardMarkup:
+    busy_datetimes = await schedule_service.get_booking_slots_for_date(
+        session=session, visit_date=visit_date
+    )
+    busy_times = {value.time() for value in busy_datetimes}
+
     kb = []
-    for timeline in range(10, 22):
+    for time_slot in time_slots:
+        time_to_text = time_slot.strftime("%H:%M")
+        is_available = time_slot not in busy_times
         kb.append(
             [
                 InlineKeyboardButton(
-                    text=f"{timeline}:00 - {timeline + 1}:00",
-                    callback_data=f"timeline_{timeline}",
+                    text=f"🟢 {time_to_text}"
+                    if is_available
+                    else f"🔴 Время {time_to_text} занято",
+                    callback_data=f"timeline_{time_to_text}"
+                    if is_available
+                    else "unavailable_time",
                 )
             ]
         )
+
+    kb.append([InlineKeyboardButton(text="ВЫХОД", callback_data="cancel")])
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard

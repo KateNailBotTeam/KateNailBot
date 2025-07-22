@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import DateTime, Integer, Sequence, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -16,13 +16,11 @@ class Base(DeclarativeBase):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.now(UTC),
         server_default=func.now(),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.now(UTC),
         server_default=func.now(),
         server_onupdate=func.now(),
         nullable=True,
