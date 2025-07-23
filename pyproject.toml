@@ -83,7 +83,6 @@ disallow_untyped_defs = true
 disallow_untyped_decorators = false
 exclude = "^tests/"
 plugins = ["pydantic.mypy"]
-disable_error_code = ["ANN401"]
 
 [tool.pydantic-mypy]
 init_typed = true

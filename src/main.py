@@ -7,11 +7,9 @@ from redis.asyncio.client import Redis
 
 from src.config import settings
 from src.exceptions.token import TokenNotFoundError
-from src.middlewares.db import DatabaseMiddleware
-from src.middlewares.schedule_service import ScheduleServiceMiddleware
-from src.middlewares.user_service import UserServiceMiddleware
 from src.routers import router
 from src.static_commands import commands
+from src.utils.register_middlewares import register_middlewares
 
 
 async def main() -> None:
@@ -32,9 +30,7 @@ async def main() -> None:
     dp = Dispatcher(storage=storage)
 
     dp.include_routers(router)
-    dp.update.middleware(DatabaseMiddleware())
-    dp.update.middleware(UserServiceMiddleware())
-    dp.update.middleware(ScheduleServiceMiddleware())
+    register_middlewares(dp)
 
     logging.basicConfig(
         level=logging.DEBUG,

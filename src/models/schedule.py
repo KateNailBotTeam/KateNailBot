@@ -1,10 +1,14 @@
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base
+
+if TYPE_CHECKING:
+    from src.models.user import User
 
 
 class VisitDurationTimeEnum(Enum):
@@ -38,3 +42,5 @@ class Schedule(Base):
     is_approved: Mapped[bool] = mapped_column(
         Boolean, nullable=True, default=None, server_default=text("NULL")
     )
+
+    user: Mapped["User"] = relationship("User", back_populates="schedules")

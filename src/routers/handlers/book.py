@@ -8,7 +8,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import BookingError
-from src.exceptions.callback import InvalidCallbackError
+from src.exceptions.telegram_object import InvalidCallbackError
 from src.keyboards.book import create_booking_list_kb, create_confirm_cancel_booking_kb
 from src.keyboards.calendar import (
     create_calendar_for_available_dates,

@@ -12,10 +12,15 @@ class BaseService(Generic[ModelType]):
     def __init__(self, model: type[ModelType]) -> None:
         self.model = model
 
-    async def get(self, session: AsyncSession, **filters: Any) -> ModelType | None:  # noqa: ANN401
+    async def get(self, session: AsyncSession, **filters: Any) -> ModelType | None:
         stmt = select(self.model).filter_by(**filters)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_all(self, session: AsyncSession, **filters: Any) -> list[ModelType]:
+        stmt = select(self.model).filter_by(**filters)
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
 
     async def add(self, session: AsyncSession, obj: ModelType) -> ModelType:
         session.add(obj)

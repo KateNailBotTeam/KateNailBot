@@ -1,24 +1,23 @@
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.keyboards.change_schedule import create_change_schedule_keyboard
+from src.exceptions.telegram_object import InvalidCallbackError
+from src.keyboards.admin import create_all_bookings_keyboard
+from src.services.admin import AdminService
 
 router = Router(name=__name__)
 
 
-@router.callback_query(F.data == "change_schedule")
-async def change_schedule(callback: CallbackQuery) -> None:
-    if isinstance(callback.message, Message) and isinstance(callback.message.text, str):
-        await callback.message.edit_text(
-            text=callback.message.text, reply_markup=create_change_schedule_keyboard()
-        )
-
-
-@router.callback_query(F.data == "change_bookings")
-async def change_bookings(callback: CallbackQuery) -> None:
-    _ = callback
-
-
 @router.callback_query(F.data == "show_all_bookings")
-async def show_all_bookings(callback: CallbackQuery) -> None:
-    _ = callback
+async def show_all_bookings(
+    callback: CallbackQuery, session: AsyncSession, admin_service: AdminService
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidCallbackError("callback.message должен быть объектом Message")
+
+    bookings = await admin_service.get_all_bookings(session=session)
+
+    await callback.message.edit_text(
+        text="Все записи клиентов", reply_markup=create_all_bookings_keyboard(bookings)
+    )
