@@ -20,8 +20,7 @@ async def admin_panel(
     if not isinstance(message.from_user, User):
         raise InvalidUserError("ошибка типа телеграм User")
 
-    telegram_id = message.from_user.id
-    if not await check_is_admin(telegram_id=telegram_id, session=session):
+    if not await check_is_admin(telegram_id=message.from_user.id, session=session):
         await message.answer(text="⛔ У вас нет доступа, так как вы не админ")
         return
 
