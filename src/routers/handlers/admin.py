@@ -1,7 +1,9 @@
 import logging
+from datetime import datetime
 
 from aiogram import F, Router
 from aiogram.enums.parse_mode import ParseMode
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +12,11 @@ from src.keyboards.admin import (
     create_all_bookings_keyboard,
     create_status_update_keyboard,
 )
+from src.keyboards.calendar import create_calendar_for_available_dates
+from src.models import ScheduleSettings
 from src.services.admin import AdminService
+from src.services.schedule import ScheduleService
+from src.states.days_off import DaysOff
 from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 
 router = Router(name=__name__)
@@ -111,4 +117,80 @@ async def on_status_change(
         callback.from_user.id,
         schedule_id,
         action,
+    )
+
+
+@router.callback_query(F.data == "set_days_off")
+async def set_first_day_off(
+    callback: CallbackQuery,
+    state: FSMContext,
+    schedule_service: ScheduleService,
+    schedule_settings: ScheduleSettings,
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    available_dates = schedule_service.get_available_dates(
+        schedule_settings=schedule_settings
+    )
+    await callback.message.edit_text(
+        text="Выберите первый нерабочий день",
+        reply_markup=create_calendar_for_available_dates(dates=available_dates),
+    )
+
+    await state.set_state(DaysOff.first_day_off)
+
+
+@router.callback_query(DaysOff.first_day_off, F.data.startswith("choose_date_"))
+async def set_last_day_off(
+    callback: CallbackQuery,
+    state: FSMContext,
+    schedule_service: ScheduleService,
+    schedule_settings: ScheduleSettings,
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    if not isinstance(callback.data, str):
+        raise InvalidCallbackError("Данные в callback.data не являются типом str")
+
+    available_dates = schedule_service.get_available_dates(
+        schedule_settings=schedule_settings
+    )
+
+    await callback.message.edit_text(
+        text="Выберете последний нерабочий день",
+        reply_markup=create_calendar_for_available_dates(dates=available_dates),
+    )
+
+    await state.set_state(DaysOff.last_day_off)
+
+    first_day_off_str = callback.data.replace("choose_date_", "")
+    await state.update_data(first_day_off_str=first_day_off_str)
+
+
+@router.callback_query(DaysOff.last_day_off, F.data.startswith("choose_date_"))
+async def set_days_off_handler(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    if not isinstance(callback.data, str):
+        raise InvalidCallbackError("Данные в callback.data не являются типом str")
+
+    data = await state.get_data()
+
+    first_day_off_str = data.get("first_day_off_str")
+    if not first_day_off_str:
+        raise ValueError("Не передан первый нерабочий день")
+
+    last_day_off_str = callback.data.replace("choose_date_", "")
+
+    first_day_off = datetime.strptime(first_day_off_str, "%Y_%m_%d").date()
+    last_day_off = datetime.strptime(last_day_off_str, "%Y_%m_%d").date()
+
+    await callback.message.edit_text(
+        text=f"Вы выбрали даты с {first_day_off} по {last_day_off}"
     )

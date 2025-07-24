@@ -42,7 +42,7 @@ def upgrade() -> None:
         schedule_settings_table,
         [{
             "id": 1,
-            "working_days": [0, 1, 2, 3, 4, 5, 6],
+            "working_days": [0, 1, 2, 3, 4],
             "start_working_time": time(9, 0, 0),
             "end_working_time": time(18, 0, 0),
             "booking_days_ahead": 14,

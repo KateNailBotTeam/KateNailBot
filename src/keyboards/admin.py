@@ -8,9 +8,10 @@ from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 def create_admin_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    builder.button(text="Открыть все записи", callback_data="show_all_bookings")
+    builder.button(text="Управление записями", callback_data="show_all_bookings")
+    builder.button(text="Установить нерабочие дни", callback_data="set_days_off")
     builder.button(
-        text="Открыть подтвержденные записи", callback_data="change_bookings"
+        text="Сделать рассылку по клиентам", callback_data="send_message_to_all_client"
     )
 
     builder.adjust(1)

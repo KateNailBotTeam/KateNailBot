@@ -52,13 +52,3 @@ class AdminService(BaseService[Schedule]):
         return await self.update(
             obj_id=schedule_id, session=session, new_data={"is_approved": approved}
         )
-
-    async def delete_booking(self, session: AsyncSession, schedule_id: int) -> bool:
-        is_success = await self.delete(session=session, obj_id=schedule_id)
-        return is_success
-
-    async def notify_admin_on_booking(self) -> None:
-        pass
-
-    async def notify_user_on_approve_or_reject(self) -> None:
-        pass
