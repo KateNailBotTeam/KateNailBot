@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import F, Router
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.types import CallbackQuery, Message
@@ -12,16 +14,21 @@ from src.services.admin import AdminService
 from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 
 router = Router(name=__name__)
+logger = logging.getLogger(__name__)
 
 
 @router.callback_query(F.data == "show_all_bookings")
 async def show_all_bookings(
     callback: CallbackQuery, session: AsyncSession, admin_service: AdminService
 ) -> None:
+    logger.info("Пользователь %s запросил все записи", callback.from_user.id)
+
     if not isinstance(callback.message, Message):
+        logger.error("Неверный тип callback.message в show_all_bookings")
         raise InvalidCallbackError()
 
     bookings = await admin_service.get_all_bookings(session=session)
+    logger.debug("Найдено записей: %d", len(bookings))
 
     await callback.message.edit_text(
         text="Записи и информация о клиентах",
@@ -33,15 +40,21 @@ async def show_all_bookings(
 async def on_schedule_click(
     callback: CallbackQuery, session: AsyncSession, admin_service: AdminService
 ) -> None:
+    logger.info(
+        "Пользователь %s открыл запись: %s", callback.from_user.id, callback.data
+    )
     if not isinstance(callback.data, str):
+        logger.error("callback.data не является строкой")
         raise TypeError("Ошибка в типе callback.data, должен быть строкой")
 
     if not isinstance(callback.message, Message):
+        logger.error("Неверный тип callback.message в on_schedule_click")
         raise InvalidMessageError()
 
     schedule_id = int(callback.data.split("_")[1])
     schedule = await admin_service.get_booking(session=session, booking_id=schedule_id)
     if not schedule:
+        logger.warning("Запись с ID %d не найдена", schedule_id)
         raise ValueError(f"Не найдена запись по ID: {schedule_id}")
 
     text = (
@@ -66,10 +79,15 @@ async def on_schedule_click(
 async def on_status_change(
     callback: CallbackQuery, session: AsyncSession, admin_service: AdminService
 ) -> None:
+    logger.info(
+        "Пользователь %s изменяет статус: %s", callback.from_user.id, callback.data
+    )
     if not isinstance(callback.data, str):
+        logger.error("callback.data не является строкой в on_status_change")
         raise TypeError("Ошибка в типе callback.data, должен быть строкой")
 
     if not isinstance(callback.message, Message):
+        logger.error("Неверный тип callback.message в on_status_change")
         raise InvalidMessageError()
 
     action, schedule_id_str = callback.data.split("_")
@@ -88,3 +106,9 @@ async def on_status_change(
     )
 
     await callback.message.delete()
+    logger.info(
+        "Пользователь %s изменил статус записи %d на %s",
+        callback.from_user.id,
+        schedule_id,
+        action,
+    )

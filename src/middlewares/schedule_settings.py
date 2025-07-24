@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -7,6 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.schedule_settings import ScheduleSettings
+
+logger = logging.getLogger(__name__)
 
 
 class ScheduleSettingsMiddleware(BaseMiddleware):
@@ -23,6 +26,7 @@ class ScheduleSettingsMiddleware(BaseMiddleware):
         settings = result.scalar_one_or_none()
 
         if not settings:
+            logger.error("Настройки расписания не найдены в базе")
             raise RuntimeError("Настройки расписания не найдены")
 
         data["schedule_settings"] = settings

@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from sqlalchemy import and_, select
@@ -6,6 +7,8 @@ from sqlalchemy.orm import joinedload
 
 from src.models.schedule import Schedule
 from src.services.base import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class AdminService(BaseService[Schedule]):
@@ -17,6 +20,7 @@ class AdminService(BaseService[Schedule]):
         session: AsyncSession,
         booking_id: int,
     ) -> Schedule | None:
+        logger.debug("Получение бронирования id=%d", booking_id)
         stmt = (
             select(Schedule)
             .options(joinedload(Schedule.user))
@@ -24,6 +28,8 @@ class AdminService(BaseService[Schedule]):
         )
         result = await session.execute(stmt)
         booking = result.scalar_one_or_none()
+        logger.info("Бронь: %s", booking_id)
+
         return booking
 
     @staticmethod

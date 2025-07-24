@@ -131,7 +131,9 @@ class ScheduleService(BaseService[Schedule]):
         )
 
         await self.add(session=session, obj=new_slot)
-        logger.info("Создан новый слот: %s", new_slot)
+        logger.info(
+            "Создан новый слот: %s для пользователя %d", new_slot, user_telegram_id
+        )
         return new_slot
 
     @staticmethod
@@ -139,6 +141,7 @@ class ScheduleService(BaseService[Schedule]):
         session: AsyncSession, user_telegram_id: int
     ) -> list[datetime]:
         """Возвращает список будущих записей пользователя"""
+        logger.debug("Получение записей для пользователя %d", user_telegram_id)
         stmt = (
             select(Schedule.visit_datetime)
             .where(
@@ -164,6 +167,11 @@ class ScheduleService(BaseService[Schedule]):
         session: AsyncSession, user_telegram_id: int, datetime_to_cancel: datetime
     ) -> None:
         """Отменяет указанную запись пользователя"""
+        logger.debug(
+            "Попытка отменить запись для пользователя %d на %s",
+            user_telegram_id,
+            datetime_to_cancel,
+        )
         stmt = delete(Schedule).where(
             and_(
                 Schedule.user_telegram_id == user_telegram_id,
