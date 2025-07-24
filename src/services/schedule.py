@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class ScheduleService(BaseService[Schedule]):
-    WORKING_DAYS = (0, 1, 2, 3, 4)  # пн-пт
+    WORKING_DAYS = (0, 1, 2, 3, 4, 5, 6)  # пн-пт
     WORKING_HOURS_START = "09:00"
     WORKING_HOURS_END = "18:00"
     DEFAULT_SLOT_DURATION = 30  # минут
