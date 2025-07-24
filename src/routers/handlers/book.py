@@ -14,6 +14,7 @@ from src.keyboards.calendar import (
     create_calendar_for_available_dates,
     create_choose_time_keyboard,
 )
+from src.models.schedule_settings import ScheduleSettings
 from src.services.schedule import ScheduleService
 from src.states.cancel_booking import CancelBooking
 from src.states.choose_visit_datetime import ChooseVisitDatetime
@@ -24,7 +25,10 @@ logger = logging.getLogger(__name__)
 
 @router.callback_query(F.data == "book")
 async def show_days(
-    callback: CallbackQuery, state: FSMContext, schedule_service: ScheduleService
+    callback: CallbackQuery,
+    state: FSMContext,
+    schedule_service: ScheduleService,
+    schedule_settings: ScheduleSettings,
 ) -> None:
     logger.info("Пользователь %s начал бронирование.", callback.from_user.id)
     if not isinstance(callback.message, Message):
@@ -32,7 +36,7 @@ async def show_days(
         raise InvalidCallbackError("callback.message должен быть объектом Message")
     await callback.answer()
 
-    available_dates = schedule_service.get_available_dates()
+    available_dates = schedule_service.get_available_dates(schedule_settings)
 
     await state.set_state(ChooseVisitDatetime.waiting_for_date)
     await state.update_data(telegram_id=callback.from_user.id)
@@ -51,6 +55,7 @@ async def show_time(
     state: FSMContext,
     session: AsyncSession,
     schedule_service: ScheduleService,
+    schedule_settings: ScheduleSettings,
 ) -> None:
     logger.info("Пользователь %s выбрал дату для записи.", callback.from_user.id)
     if not isinstance(callback.message, Message) or not isinstance(callback.data, str):
@@ -64,7 +69,9 @@ async def show_time(
     await state.update_data(visit_date_str=visit_date_str)
     await state.set_state(ChooseVisitDatetime.waiting_for_time)
 
-    time_slots = schedule_service.get_time_slots(visit_date=visit_date)
+    time_slots = schedule_service.get_time_slots(
+        visit_date=visit_date, schedule_settings=schedule_settings
+    )
 
     await callback.message.edit_text(
         text="Выберете удобное время",
@@ -90,6 +97,7 @@ async def finish_booking(
     state: FSMContext,
     schedule_service: ScheduleService,
     session: AsyncSession,
+    schedule_settings: ScheduleSettings,
 ) -> None:
     logger.info("Пользователь %s выбирает время для записи.", callback.from_user.id)
     if not isinstance(callback.message, Message) or not isinstance(callback.data, str):
@@ -120,6 +128,7 @@ async def finish_booking(
         visit_date=visit_date,
         visit_time=visit_time,
         user_telegram_id=user_telegram_id,
+        schedule_settings=schedule_settings,
     )
 
     await callback.message.edit_text(
