@@ -43,4 +43,8 @@ class Schedule(Base):
         Boolean, nullable=True, default=None, server_default=text("NULL")
     )
 
+    is_day_off: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+
     user: Mapped["User"] = relationship("User", back_populates="schedules")

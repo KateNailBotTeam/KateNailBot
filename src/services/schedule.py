@@ -37,8 +37,9 @@ class ScheduleService(BaseService[Schedule]):
         logger.debug("Доступные даты: %s", available_dates)
         return available_dates
 
+    @staticmethod
     def get_time_slots(
-        self, visit_date: date, schedule_settings: ScheduleSettings
+        visit_date: date, schedule_settings: ScheduleSettings
     ) -> list[time]:
         """Генерирует список временных слотов для указанной даты"""
         time_slots = []
@@ -64,6 +65,18 @@ class ScheduleService(BaseService[Schedule]):
     ) -> bool:
         """Проверяет доступность слота для бронирования"""
         dt = datetime.combine(visit_date, visit_time)
+
+        day_stmt = select(Schedule.is_day_off).where(
+            Schedule.visit_datetime.between(
+                datetime.combine(visit_date, time.min),
+                datetime.combine(visit_date, time.max),
+            )
+        )
+        result = await session.execute(day_stmt)
+        is_day_off = result.scalar_one_or_none()
+        if is_day_off:
+            logger.warning("Дата %s является выходным", visit_date)
+            raise BookingError("Выбранная дата является выходным днем")
 
         if visit_date not in self.get_available_dates(schedule_settings):
             logger.warning("Недоступная дата: %s", visit_date)
