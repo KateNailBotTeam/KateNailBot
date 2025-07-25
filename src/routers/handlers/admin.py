@@ -124,14 +124,15 @@ async def on_status_change(
 async def set_first_day_off(
     callback: CallbackQuery,
     state: FSMContext,
+    session: AsyncSession,
     schedule_service: ScheduleService,
     schedule_settings: ScheduleSettings,
 ) -> None:
     if not isinstance(callback.message, Message):
         raise InvalidMessageError()
 
-    available_dates = schedule_service.get_available_dates(
-        schedule_settings=schedule_settings
+    available_dates = await schedule_service.get_available_dates(
+        session=session, schedule_settings=schedule_settings
     )
     await callback.message.edit_text(
         text="Выберите первый нерабочий день",
@@ -145,6 +146,7 @@ async def set_first_day_off(
 async def set_last_day_off(
     callback: CallbackQuery,
     state: FSMContext,
+    session: AsyncSession,
     schedule_service: ScheduleService,
     schedule_settings: ScheduleSettings,
 ) -> None:
@@ -154,8 +156,8 @@ async def set_last_day_off(
     if not isinstance(callback.data, str):
         raise InvalidCallbackError("Данные в callback.data не являются типом str")
 
-    available_dates = schedule_service.get_available_dates(
-        schedule_settings=schedule_settings
+    available_dates = await schedule_service.get_available_dates(
+        session=session, schedule_settings=schedule_settings
     )
 
     await callback.message.edit_text(
@@ -173,6 +175,8 @@ async def set_last_day_off(
 async def set_days_off_handler(
     callback: CallbackQuery,
     state: FSMContext,
+    session: AsyncSession,
+    admin_service: AdminService,
 ) -> None:
     if not isinstance(callback.message, Message):
         raise InvalidMessageError()
@@ -191,6 +195,20 @@ async def set_days_off_handler(
     first_day_off = datetime.strptime(first_day_off_str, "%Y_%m_%d").date()
     last_day_off = datetime.strptime(last_day_off_str, "%Y_%m_%d").date()
 
+    if last_day_off < first_day_off:
+        await callback.answer(
+            "Последний день не может быть раньше первого. Повторите выбор.",
+            show_alert=True,
+        )
+        await state.set_state(DaysOff.first_day_off)
+        return
+
+    await admin_service.set_days_off(
+        first_day_off=first_day_off,
+        last_day_off=last_day_off,
+        session=session,
+    )
+
     await callback.message.edit_text(
-        text=f"Вы выбрали даты с {first_day_off} по {last_day_off}"
+        text=f"Вы установили нерабочие дни с {first_day_off_str} по {last_day_off_str}."
     )

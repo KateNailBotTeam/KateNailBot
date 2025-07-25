@@ -5,6 +5,7 @@ from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import BookingError
+from src.models.day_off import DaysOff
 from src.models.schedule import Schedule
 from src.models.schedule_settings import ScheduleSettings
 from src.services.base import BaseService
@@ -16,25 +17,44 @@ class ScheduleService(BaseService[Schedule]):
     def __init__(self) -> None:
         super().__init__(Schedule)
 
-    def is_working_day(
-        self, visit_date: date, schedule_settings: ScheduleSettings
+    @staticmethod
+    async def is_working_day(
+        visit_date: date, session: AsyncSession, schedule_settings: ScheduleSettings
     ) -> bool:
-        """Проверяет, является ли дата рабочим днём (пн-пт)"""
-        return visit_date.weekday() in schedule_settings.working_days
+        """Проверяет, является ли дата рабочим днём (пн-пт) и не выходной у мастера"""
+        stmt = select(DaysOff).where(DaysOff.day_off == visit_date)
+        result = await session.execute(stmt)
+        day_off = result.scalar_one_or_none()
+        is_available_day = (
+            visit_date.weekday() in schedule_settings.working_days and not day_off
+        )
+        logger.debug(
+            "Проверка даты %s: , выходной = %s → доступна = %s",
+            visit_date,
+            bool(day_off),
+            is_available_day,
+        )
+        return is_available_day
 
-    def get_available_dates(self, schedule_settings: ScheduleSettings) -> list[date]:
+    async def get_available_dates(
+        self, session: AsyncSession, schedule_settings: ScheduleSettings
+    ) -> list[date]:
         """Возвращает список доступных дат для записи (14 рабочих дней вперёд)"""
         available_dates: list[date] = []
         current_date = datetime.now().date()
 
         while len(available_dates) < schedule_settings.booking_days_ahead:
-            if self.is_working_day(
-                visit_date=current_date, schedule_settings=schedule_settings
+            if await self.is_working_day(
+                visit_date=current_date,
+                session=session,
+                schedule_settings=schedule_settings,
             ):
                 available_dates.append(current_date)
             current_date += timedelta(days=1)
 
-        logger.debug("Доступные даты: %s", available_dates)
+        logger.info(
+            "Найдено %d доступных дат: %s", len(available_dates), available_dates
+        )
         return available_dates
 
     @staticmethod
@@ -66,21 +86,17 @@ class ScheduleService(BaseService[Schedule]):
         """Проверяет доступность слота для бронирования"""
         dt = datetime.combine(visit_date, visit_time)
 
-        day_stmt = select(Schedule.is_day_off).where(
-            Schedule.visit_datetime.between(
-                datetime.combine(visit_date, time.min),
-                datetime.combine(visit_date, time.max),
-            )
-        )
-        result = await session.execute(day_stmt)
-        is_day_off = result.scalar_one_or_none()
-        if is_day_off:
+        stmt_day = select(DaysOff).where(DaysOff.day_off == visit_date)
+        result = await session.execute(stmt_day)
+        day_off = result.scalar_one_or_none()
+
+        if day_off:
             logger.warning("Дата %s является выходным", visit_date)
             raise BookingError("Выбранная дата является выходным днем")
 
-        if visit_date not in self.get_available_dates(schedule_settings):
-            logger.warning("Недоступная дата: %s", visit_date)
-            raise BookingError("Выбранная дата недоступна для записи")
+        if visit_date.weekday() not in schedule_settings.working_days:
+            logger.warning("Дата %s не входит в рабочие дни", visit_date)
+            raise BookingError("Запись доступна только в рабочие дни")
 
         if visit_time not in self.get_time_slots(
             visit_date=visit_date, schedule_settings=schedule_settings
@@ -88,8 +104,8 @@ class ScheduleService(BaseService[Schedule]):
             logger.warning("Недоступное время: %s", visit_time)
             raise BookingError("Выбранное время недоступно для записи")
 
-        stmt = select(Schedule.is_booked).where(Schedule.visit_datetime == dt)
-        result = await session.execute(stmt)
+        stmt_booking = select(Schedule.is_booked).where(Schedule.visit_datetime == dt)
+        result = await session.execute(stmt_booking)
         booked = result.scalar_one_or_none()
 
         is_available = booked is None or not booked

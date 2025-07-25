@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 async def show_days(
     callback: CallbackQuery,
     state: FSMContext,
+    session: AsyncSession,
     schedule_service: ScheduleService,
     schedule_settings: ScheduleSettings,
 ) -> None:
@@ -36,7 +37,9 @@ async def show_days(
         raise InvalidCallbackError("callback.message должен быть объектом Message")
     await callback.answer()
 
-    available_dates = schedule_service.get_available_dates(schedule_settings)
+    available_dates = await schedule_service.get_available_dates(
+        session=session, schedule_settings=schedule_settings
+    )
 
     await state.set_state(ChooseVisitDatetime.waiting_for_date)
     await state.update_data(telegram_id=callback.from_user.id)

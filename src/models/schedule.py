@@ -19,7 +19,9 @@ class VisitDurationTimeEnum(Enum):
 class Schedule(Base):
     __tablename__ = "schedules"
 
-    visit_datetime: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    visit_datetime: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, unique=True
+    )
     visit_duration: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
@@ -41,10 +43,6 @@ class Schedule(Base):
 
     is_approved: Mapped[bool] = mapped_column(
         Boolean, nullable=True, default=None, server_default=text("NULL")
-    )
-
-    is_day_off: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
     )
 
     user: Mapped["User"] = relationship("User", back_populates="schedules")
