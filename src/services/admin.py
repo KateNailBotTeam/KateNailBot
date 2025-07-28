@@ -1,8 +1,9 @@
 import logging
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, delete, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -64,33 +65,48 @@ class AdminService(BaseService[Schedule]):
         return updated_booking
 
     @staticmethod
-    async def set_days_off(
-        first_day_off: date,
-        last_day_off: date,
+    async def set_workdays(
+        first_day: date,
+        last_day: date,
+        is_work: bool,
         session: AsyncSession,
     ) -> None:
-        if first_day_off > last_day_off:
+        if first_day > last_day:
             logger.warning(
-                "Попытка установить выходные: начальная дата позже конечной (%s > %s)",
-                first_day_off,
-                last_day_off,
+                "Попытка установить дни с неправильным диапазоном:"
+                " начальная дата позже конечной (%s > %s)",
+                first_day,
+                last_day,
             )
             raise ValueError("first_day_off не может быть позже last_day_off")
 
-        current_date = first_day_off
-        while current_date <= last_day_off:
-            await session.execute(
-                insert(DaysOff)
-                .values(day_off=current_date)
-                .on_conflict_do_nothing(index_elements=["day_off"])
+        try:
+            if is_work:
+                await session.execute(
+                    delete(DaysOff).where(DaysOff.day_off.between(first_day, last_day))
+                )
+                await session.commit()
+
+            else:
+                current_date = first_day
+                while current_date <= last_day:
+                    await session.execute(
+                        insert(DaysOff)
+                        .values(day_off=current_date)
+                        .on_conflict_do_nothing(index_elements=["day_off"])
+                    )
+                    current_date += timedelta(days=1)
+
+                await session.commit()
+
+            logger.info(
+                "%s дни с %s по %s обновлены.",
+                "Рабочие" if is_work else "Нерабочие",
+                first_day,
+                last_day,
             )
 
-            current_date += timedelta(days=1)
-
-        await session.commit()
-
-        logger.info(
-            "Все выходные дни с %s по %s добавлены (без дубликатов).",
-            first_day_off,
-            last_day_off,
-        )
+        except SQLAlchemyError as e:
+            await session.rollback()
+            logger.exception("Ошибка при обновлении дней: %s", exc_info=e)
+            raise

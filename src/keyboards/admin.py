@@ -8,11 +8,27 @@ from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 def create_admin_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    builder.button(text="Управление записями", callback_data="show_all_bookings")
-    builder.button(text="Установить нерабочие дни", callback_data="set_days_off")
+    builder.button(text="📋 Управление записями", callback_data="show_all_bookings")
     builder.button(
-        text="Сделать рассылку по клиентам", callback_data="send_message_to_all_client"
+        text="🗓️ Управление рабочими/нерабочими днями", callback_data="set_first_day"
     )
+    builder.button(
+        text="📤 Сделать рассылку по клиентам",
+        callback_data="send_message_to_all_client",
+    )
+    builder.button(text="❌ ВЫХОД", callback_data="cancel")
+
+    builder.adjust(1)
+
+    return builder.as_markup()
+
+
+def create_workday_selection_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    builder.button(text="📅 Установить как рабочие дни", callback_data="set_days_work")
+    builder.button(text="🚫 Установить как нерабочие дни", callback_data="set_days_off")
+    builder.button(text="❌ ВЫХОД", callback_data="cancel")
 
     builder.adjust(1)
 

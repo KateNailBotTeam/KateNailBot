@@ -11,12 +11,13 @@ from src.exceptions.telegram_object import InvalidCallbackError, InvalidMessageE
 from src.keyboards.admin import (
     create_all_bookings_keyboard,
     create_status_update_keyboard,
+    create_workday_selection_keyboard,
 )
 from src.keyboards.calendar import create_calendar_for_available_dates
 from src.models import ScheduleSettings
 from src.services.admin import AdminService
 from src.services.schedule import ScheduleService
-from src.states.days_off import DaysOff
+from src.states.days import Days
 from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 
 router = Router(name=__name__)
@@ -120,8 +121,8 @@ async def on_status_change(
     )
 
 
-@router.callback_query(F.data == "set_days_off")
-async def set_first_day_off(
+@router.callback_query(F.data == "set_first_day")
+async def set_first_day(
     callback: CallbackQuery,
     state: FSMContext,
     session: AsyncSession,
@@ -132,18 +133,20 @@ async def set_first_day_off(
         raise InvalidMessageError()
 
     available_dates = await schedule_service.get_available_dates(
-        session=session, schedule_settings=schedule_settings
+        session=session,
+        schedule_settings=schedule_settings,
+        check_days_off=False,
     )
     await callback.message.edit_text(
-        text="Выберите первый нерабочий день",
+        text="Выберите первый день",
         reply_markup=create_calendar_for_available_dates(dates=available_dates),
     )
 
-    await state.set_state(DaysOff.first_day_off)
+    await state.set_state(Days.first_day)
 
 
-@router.callback_query(DaysOff.first_day_off, F.data.startswith("choose_date_"))
-async def set_last_day_off(
+@router.callback_query(Days.first_day, F.data.startswith("choose_date_"))
+async def set_last_day(
     callback: CallbackQuery,
     state: FSMContext,
     session: AsyncSession,
@@ -157,22 +160,63 @@ async def set_last_day_off(
         raise InvalidCallbackError("Данные в callback.data не являются типом str")
 
     available_dates = await schedule_service.get_available_dates(
-        session=session, schedule_settings=schedule_settings
+        session=session, schedule_settings=schedule_settings, check_days_off=False
     )
 
     await callback.message.edit_text(
-        text="Выберете последний нерабочий день",
+        text="Выберете последний день",
         reply_markup=create_calendar_for_available_dates(dates=available_dates),
     )
 
-    await state.set_state(DaysOff.last_day_off)
+    await state.set_state(Days.last_day)
 
-    first_day_off_str = callback.data.replace("choose_date_", "")
-    await state.update_data(first_day_off_str=first_day_off_str)
+    first_day_str = callback.data.replace("choose_date_", "")
+    await state.update_data(first_day_str=first_day_str)
 
 
-@router.callback_query(DaysOff.last_day_off, F.data.startswith("choose_date_"))
-async def set_days_off_handler(
+@router.callback_query(Days.last_day, F.data.startswith("choose_date_"))
+async def choose_dates_to_change_handler(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    if not isinstance(callback.data, str):
+        raise InvalidCallbackError("Данные в callback.data не являются типом str")
+
+    data = await state.get_data()
+
+    first_day_str = data.get("first_day_str")
+    if not first_day_str:
+        raise ValueError("Не передан первый день")
+
+    last_day_str = callback.data.replace("choose_date_", "")
+
+    first_day = datetime.strptime(first_day_str, "%Y_%m_%d").date()
+    last_day = datetime.strptime(last_day_str, "%Y_%m_%d").date()
+
+    if last_day < first_day:
+        await callback.answer(
+            "Последний день не может быть раньше первого. Повторите выбор.",
+            show_alert=True,
+        )
+        await state.set_state(Days.first_day)
+        return
+
+    await state.update_data(last_day_str=last_day_str)
+    await state.set_state(Days.apply_changes)
+
+    await callback.message.edit_text(
+        text=rf"Вы выбрали дни с <b>{first_day.strftime('%d.%m.%Y')}</b> "
+        rf"по <b>{last_day.strftime('%d.%m.%Y')}</b>.",
+        reply_markup=create_workday_selection_keyboard(),
+        parse_mode=ParseMode.HTML,
+    )
+
+
+@router.callback_query(Days.apply_changes, F.data.startswith("set_days_"))
+async def set_days(
     callback: CallbackQuery,
     state: FSMContext,
     session: AsyncSession,
@@ -185,30 +229,34 @@ async def set_days_off_handler(
         raise InvalidCallbackError("Данные в callback.data не являются типом str")
 
     data = await state.get_data()
+    first_day_str = data.get("first_day_str")
+    last_day_str = data.get("last_day_str")
 
-    first_day_off_str = data.get("first_day_off_str")
-    if not first_day_off_str:
-        raise ValueError("Не передан первый нерабочий день")
+    if not first_day_str:
+        raise ValueError("Не передан первый день")
 
-    last_day_off_str = callback.data.replace("choose_date_", "")
+    if not last_day_str:
+        raise ValueError("Не передан последний день")
 
-    first_day_off = datetime.strptime(first_day_off_str, "%Y_%m_%d").date()
-    last_day_off = datetime.strptime(last_day_off_str, "%Y_%m_%d").date()
+    first_day = datetime.strptime(first_day_str, "%Y_%m_%d").date()
+    last_day = datetime.strptime(last_day_str, "%Y_%m_%d").date()
 
-    if last_day_off < first_day_off:
-        await callback.answer(
-            "Последний день не может быть раньше первого. Повторите выбор.",
-            show_alert=True,
-        )
-        await state.set_state(DaysOff.first_day_off)
-        return
+    check_type_days = callback.data.replace("set_days_", "")
 
-    await admin_service.set_days_off(
-        first_day_off=first_day_off,
-        last_day_off=last_day_off,
-        session=session,
+    if check_type_days == "work":
+        is_work = True
+    elif check_type_days == "off":
+        is_work = False
+    else:
+        raise ValueError("Неверный тип дня(рабочий или выходной) для установки дней")
+
+    await admin_service.set_workdays(
+        first_day=first_day, last_day=last_day, is_work=is_work, session=session
     )
 
     await callback.message.edit_text(
-        text=f"Вы установили нерабочие дни с {first_day_off_str} по {last_day_off_str}."
+        text=rf"Установлены {'рабочие' if is_work else 'нерабочие'} дни c "
+        rf"<b>{first_day.strftime('%d.%m.%Y')}</b> "
+        rf"по <b>{last_day.strftime('%d.%m.%Y')}</b>.",
+        parse_mode=ParseMode.HTML,
     )

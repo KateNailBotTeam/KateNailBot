@@ -18,38 +18,49 @@ class ScheduleService(BaseService[Schedule]):
         super().__init__(Schedule)
 
     @staticmethod
-    async def is_working_day(
-        visit_date: date, session: AsyncSession, schedule_settings: ScheduleSettings
+    def is_working_day(
+        visit_date: date, schedule_settings: ScheduleSettings, all_days_off: set[date]
     ) -> bool:
         """Проверяет, является ли дата рабочим днём (пн-пт) и не выходной у мастера"""
-        stmt = select(DaysOff).where(DaysOff.day_off == visit_date)
-        result = await session.execute(stmt)
-        day_off = result.scalar_one_or_none()
         is_available_day = (
-            visit_date.weekday() in schedule_settings.working_days and not day_off
+            visit_date.weekday() in schedule_settings.working_days
+            and visit_date not in all_days_off
         )
         logger.debug(
-            "Проверка даты %s: , выходной = %s → доступна = %s",
+            "Проверка даты %s: → доступна = %s",
             visit_date,
-            bool(day_off),
             is_available_day,
         )
         return is_available_day
 
     async def get_available_dates(
-        self, session: AsyncSession, schedule_settings: ScheduleSettings
-    ) -> list[date]:
-        """Возвращает список доступных дат для записи (14 рабочих дней вперёд)"""
-        available_dates: list[date] = []
+        self,
+        session: AsyncSession,
+        schedule_settings: ScheduleSettings,
+        check_days_off: bool = True,
+    ) -> set[date]:
+        """Возвращает список доступных дат для записи
+        (По умолчанию 14 рабочих дней вперёд)"""
+        available_dates: set[date] = set()
         current_date = datetime.now().date()
+        last_date = current_date + timedelta(days=schedule_settings.booking_days_ahead)
 
-        while len(available_dates) < schedule_settings.booking_days_ahead:
-            if await self.is_working_day(
+        days_off = set()
+        if check_days_off:
+            stmt = select(DaysOff.day_off).where(
+                DaysOff.day_off.between(current_date, last_date)
+            )
+
+            result = await session.execute(stmt)
+            days_off = set(result.scalars().all())
+
+        while current_date <= last_date:
+            if self.is_working_day(
                 visit_date=current_date,
-                session=session,
                 schedule_settings=schedule_settings,
+                all_days_off=days_off,
             ):
-                available_dates.append(current_date)
+                available_dates.add(current_date)
             current_date += timedelta(days=1)
 
         logger.info(

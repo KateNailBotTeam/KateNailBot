@@ -62,7 +62,7 @@ def build_calendar_section(
     return kb
 
 
-def create_calendar_for_available_dates(dates: list[date]) -> InlineKeyboardMarkup:
+def create_calendar_for_available_dates(dates: set[date]) -> InlineKeyboardMarkup:
     grouped: dict[tuple[int, int], set[int]] = defaultdict(set)
     for d in dates:
         grouped[(d.year, d.month)].add(d.day)
