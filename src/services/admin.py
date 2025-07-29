@@ -1,12 +1,14 @@
 import logging
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import and_, delete, select, update
+from sqlalchemy import and_, delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.attributes import flag_modified
 
+from src.keyboards.calendar import WEEKDAYS
 from src.models.day_off import DaysOff
 from src.models.schedule import Schedule
 from src.models.schedule_settings import ScheduleSettings
@@ -117,18 +119,16 @@ class AdminService(BaseService[Schedule]):
         session: AsyncSession, day_index: int, schedule_settings: ScheduleSettings
     ) -> None:
         """Переключает день между рабочим и нерабочим, обновляет запись в БД."""
+
+        if not 0 <= day_index <= len(WEEKDAYS):
+            raise ValueError("day_index должен быть в диапазоне 0-6")
+
         if day_index in schedule_settings.working_days:
             schedule_settings.working_days.remove(day_index)
         else:
             schedule_settings.working_days.append(day_index)
 
         schedule_settings.working_days.sort()
-
-        stmt = (
-            update(ScheduleSettings)
-            .values(working_days=schedule_settings.working_days)
-            .where(ScheduleSettings.id == schedule_settings.id)
-        )
-        await session.execute(stmt)
+        flag_modified(schedule_settings, "working_days")
 
         await session.commit()

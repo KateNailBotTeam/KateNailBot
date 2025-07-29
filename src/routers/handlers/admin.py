@@ -298,7 +298,7 @@ async def change_weekday_status(
     )
 
     await callback.message.edit_text(
-        text="<b>Нажмите на день</b> для его <i>изменения</i>",
+        text="<b>Нажмите на день</b> для его изменения",
         reply_markup=create_weekday_kb(schedule_settings),
         parse_mode=ParseMode.HTML,
     )
@@ -309,4 +309,4 @@ async def save_weekdays(callback: CallbackQuery) -> None:
     if not isinstance(callback.message, Message):
         raise InvalidMessageError()
 
-    await callback.message.edit_text("Данные успешно сохранены")
+    await callback.message.edit_text("✅ Данные успешно сохранены")
