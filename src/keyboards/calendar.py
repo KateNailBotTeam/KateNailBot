@@ -22,6 +22,8 @@ RU_MONTHS = {
     12: "Декабрь",
 }
 
+WEEKDAYS = ("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+
 
 def build_calendar_section(
     year: int, month: int, available_days: set[int]
@@ -39,9 +41,8 @@ def build_calendar_section(
         ]
     )
 
-    weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
     kb.append(
-        [InlineKeyboardButton(text=day, callback_data="ignore") for day in weekdays]
+        [InlineKeyboardButton(text=day, callback_data="ignore") for day in WEEKDAYS]
     )
 
     for week in month_days:

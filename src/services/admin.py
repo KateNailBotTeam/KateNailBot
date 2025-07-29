@@ -1,7 +1,7 @@
 import logging
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from src.models.day_off import DaysOff
 from src.models.schedule import Schedule
+from src.models.schedule_settings import ScheduleSettings
 from src.services.base import BaseService
 from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 
@@ -110,3 +111,24 @@ class AdminService(BaseService[Schedule]):
             await session.rollback()
             logger.exception("Ошибка при обновлении дней: %s", exc_info=e)
             raise
+
+    @staticmethod
+    async def toggle_working_day(
+        session: AsyncSession, day_index: int, schedule_settings: ScheduleSettings
+    ) -> None:
+        """Переключает день между рабочим и нерабочим, обновляет запись в БД."""
+        if day_index in schedule_settings.working_days:
+            schedule_settings.working_days.remove(day_index)
+        else:
+            schedule_settings.working_days.append(day_index)
+
+        schedule_settings.working_days.sort()
+
+        stmt = (
+            update(ScheduleSettings)
+            .values(working_days=schedule_settings.working_days)
+            .where(ScheduleSettings.id == schedule_settings.id)
+        )
+        await session.execute(stmt)
+
+        await session.commit()

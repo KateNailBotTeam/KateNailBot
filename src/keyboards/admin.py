@@ -13,6 +13,10 @@ def create_admin_keyboard() -> InlineKeyboardMarkup:
         text="🗓️ Управление рабочими/нерабочими днями", callback_data="set_first_day"
     )
     builder.button(
+        text="Установить рабочие дни в неделе",
+        callback_data="set_working_days_per_week",
+    )
+    builder.button(
         text="📤 Сделать рассылку по клиентам",
         callback_data="send_message_to_all_client",
     )

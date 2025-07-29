@@ -14,6 +14,7 @@ from src.keyboards.admin import (
     create_workday_selection_keyboard,
 )
 from src.keyboards.calendar import create_calendar_for_available_dates
+from src.keyboards.change_schedule import create_weekday_kb
 from src.models import ScheduleSettings
 from src.services.admin import AdminService
 from src.services.schedule import ScheduleService
@@ -260,3 +261,52 @@ async def set_days(
         rf"по <b>{last_day.strftime('%d.%m.%Y')}</b>.",
         parse_mode=ParseMode.HTML,
     )
+
+
+@router.callback_query(F.data == "set_working_days_per_week")
+async def set_working_days_per_week_handler(
+    callback: CallbackQuery,
+    schedule_settings: ScheduleSettings,
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    await callback.message.edit_text(
+        text="<b>Нажмите на день</b> для его <i>изменения</i>",
+        reply_markup=create_weekday_kb(schedule_settings),
+        parse_mode=ParseMode.HTML,
+    )
+
+
+@router.callback_query(F.data.startswith("set_weekday_"))
+async def change_weekday_status(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    admin_service: AdminService,
+    schedule_settings: ScheduleSettings,
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    if not isinstance(callback.data, str):
+        raise InvalidCallbackError("Данные в callback.data не являются типом str")
+
+    day_index = int(callback.data.replace("set_weekday_", ""))
+
+    await admin_service.toggle_working_day(
+        session=session, day_index=day_index, schedule_settings=schedule_settings
+    )
+
+    await callback.message.edit_text(
+        text="<b>Нажмите на день</b> для его <i>изменения</i>",
+        reply_markup=create_weekday_kb(schedule_settings),
+        parse_mode=ParseMode.HTML,
+    )
+
+
+@router.callback_query(F.data == "save_weekdays")
+async def save_weekdays(callback: CallbackQuery) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    await callback.message.edit_text("Данные успешно сохранены")
