@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.database import engine, session_factory
 from src.models.base import Base
+from src.models.schedule_settings import ScheduleSettings
 from src.models.user import User
 from src.services.schedule import ScheduleService
 from src.services.user import UserService
@@ -58,6 +59,14 @@ async def schedule_service():
 
 
 @pytest.fixture
+async def schedule_settings(session: AsyncSession) -> ScheduleSettings:
+    settings = ScheduleSettings()
+    session.add(settings)
+    await session.commit()
+    return settings
+
+
+@pytest.fixture
 async def create_users(session: AsyncSession, users_quantity=5):
     users = []
     for i in range(users_quantity):
@@ -75,11 +84,24 @@ async def create_users(session: AsyncSession, users_quantity=5):
 
 
 @pytest.fixture
-def available_dates(schedule_service: ScheduleService) -> list[date]:
-    return schedule_service.get_available_dates()
+async def available_dates(
+    session: AsyncSession,
+    schedule_service: ScheduleService,
+    schedule_settings: ScheduleSettings,
+) -> list[date]:
+    dates = await schedule_service.get_available_dates(
+        session=session, schedule_settings=schedule_settings
+    )
+    return sorted(dates)
 
 
 @pytest.fixture
-def time_slots(schedule_service: ScheduleService, available_dates: list[date]):
+def time_slots(
+    schedule_service: ScheduleService,
+    available_dates: list[date],
+    schedule_settings: ScheduleSettings,
+):
     visit_date = available_dates[0]
-    return schedule_service.get_time_slots(visit_date=visit_date)
+    return schedule_service.get_time_slots(
+        visit_date=visit_date, schedule_settings=schedule_settings
+    )

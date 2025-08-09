@@ -4,7 +4,7 @@ from typing import Any
 
 from aiogram.types import CallbackQuery, Message
 
-from src.exceptions.booking import InvalidCallbackError
+from src.exceptions.telegram_object import InvalidCallbackError
 
 
 def validate_callback(need_data: bool = False, need_message: bool = False) -> Callable:
