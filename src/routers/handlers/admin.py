@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -18,6 +18,7 @@ from src.keyboards.change_schedule import create_weekday_kb
 from src.models import ScheduleSettings
 from src.services.admin import AdminService
 from src.services.schedule import ScheduleService
+from src.states.broadcast_message import BroadcastMessage
 from src.states.days import Days
 from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 
@@ -310,3 +311,41 @@ async def save_weekdays(callback: CallbackQuery) -> None:
         raise InvalidMessageError()
 
     await callback.message.edit_text("✅ Данные успешно сохранены")
+
+
+@router.callback_query(F.data == "send_message_to_all_client")
+async def get_message_from_admin(callback: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    await callback.message.edit_text(
+        "Введите сообщение для отправки <b>всем пользователям</b>",
+        parse_mode=ParseMode.HTML,
+    )
+    await state.update_data(prompt_message_id=callback.message.message_id)
+    await state.set_state(BroadcastMessage.waiting_for_text)
+
+
+@router.message(BroadcastMessage.waiting_for_text, flags={"type_operation": "typing"})
+async def send_message_from_admin(
+    message: Message,
+    state: FSMContext,
+    bot: Bot,
+    session: AsyncSession,
+    admin_service: AdminService,
+) -> None:
+    data = await state.get_data()
+    prompt_message_id = data.get("prompt_message_id")
+    if prompt_message_id:
+        await bot.delete_message(chat_id=message.chat.id, message_id=prompt_message_id)
+
+    if message.text is None:
+        await message.answer("Пожалуйста, отправьте текстовое сообщение.")
+        return
+
+    text_message = message.text.strip()
+    sending_info = await admin_service.send_message_from_admin_to_all_users(
+        bot=bot, session=session, text_message=text_message
+    )
+    await message.answer(sending_info)
+    await state.clear()

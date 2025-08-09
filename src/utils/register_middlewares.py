@@ -1,4 +1,5 @@
 from aiogram import Dispatcher
+from aiogram.utils.chat_action import ChatActionMiddleware
 
 from src.middlewares.admin_service import AdminServiceMiddleware
 from src.middlewares.db import DatabaseMiddleware
@@ -13,3 +14,4 @@ def register_middlewares(dp: Dispatcher) -> None:
     dp.update.middleware(ScheduleServiceMiddleware())
     dp.update.middleware(ScheduleSettingsMiddleware())
     dp.update.middleware(AdminServiceMiddleware())
+    dp.message.middleware(ChatActionMiddleware())

@@ -1,6 +1,9 @@
+import asyncio
 import logging
 from datetime import date, datetime, timedelta
 
+from aiogram import Bot
+from aiogram.exceptions import TelegramAPIError
 from sqlalchemy import and_, delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
@@ -9,6 +12,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
 from src.keyboards.calendar import WEEKDAYS
+from src.models import User
 from src.models.day_off import DaysOff
 from src.models.schedule import Schedule
 from src.models.schedule_settings import ScheduleSettings
@@ -132,3 +136,73 @@ class AdminService(BaseService[Schedule]):
         flag_modified(schedule_settings, "working_days")
 
         await session.commit()
+
+    @staticmethod
+    async def send_message_from_admin_to_all_users(
+        bot: Bot,
+        session: AsyncSession,
+        text_message: str,
+        disable_notification: bool = True,
+    ) -> str:
+        stmt = select(User.telegram_id).where(User.is_admin.is_(False))
+        result = await session.execute(stmt)
+        users_telegram_ids = result.scalars().all()
+
+        tasks = []
+
+        for user_telegram_id in users_telegram_ids:
+            tasks.append(
+                bot.send_message(
+                    chat_id=user_telegram_id,
+                    text=text_message,
+                    disable_notification=disable_notification,
+                )
+            )
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        errors_details = ""
+        successful_sendings = 0
+        failed_sendings = 0
+
+        for user_telegram_id, send_result in zip(
+            users_telegram_ids, results, strict=False
+        ):
+            if isinstance(send_result, TelegramAPIError):
+                logger.warning(
+                    "Сообщение пользователю с telegram id %s не отправлено. Ошибка: %s",
+                    user_telegram_id,
+                    result,
+                )
+                errors_details += f"- telegram_id {user_telegram_id}: {result}\n"
+                failed_sendings += 1
+
+            elif isinstance(send_result, Exception):
+                logger.warning(
+                    "Произошла непредвиденная ошибка telegram id %s. Ошибка %s",
+                    user_telegram_id,
+                    result,
+                )
+                errors_details += f"- telegram_id {user_telegram_id}: {result}\n"
+                failed_sendings += 1
+            else:
+                successful_sendings += 1
+
+        logger.info(
+            "Рассылка завершена. Успешно: %d, Ошибок: %d, Всего пользователей: %d",
+            successful_sendings,
+            failed_sendings,
+            len(users_telegram_ids),
+        )
+
+        summary_text = (
+            f"📢 Рассылка завершена.\n"
+            f"👥 Всего пользователей: {len(users_telegram_ids)}\n"
+            f"✅ Успешно отправлено сообщений: {successful_sendings}\n"
+            f"❌ Не удалось отправить сообщения: {failed_sendings}\n"
+        )
+
+        if errors_details:
+            summary_text += "\n⚠️ Ошибки по пользователям:\n" + errors_details
+
+        return summary_text
