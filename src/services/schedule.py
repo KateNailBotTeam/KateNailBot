@@ -1,14 +1,18 @@
+import asyncio
 import logging
 from datetime import date, datetime, time, timedelta
 
+from aiogram import Bot
 from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import BookingError
+from src.exceptions.telegram_object import InvalidBotError
 from src.models.day_off import DaysOff
 from src.models.schedule import Schedule
 from src.models.schedule_settings import ScheduleSettings
 from src.services.base import BaseService
+from src.utils.get_admins_ids import get_admin_ids
 
 logger = logging.getLogger(__name__)
 
@@ -235,3 +239,33 @@ class ScheduleService(BaseService[Schedule]):
             user_telegram_id,
             datetime_to_cancel,
         )
+
+    @staticmethod
+    async def notify_admins(
+        session: AsyncSession,
+        bot: Bot,
+        text: str,
+    ) -> None:
+        admin_ids = await get_admin_ids(session=session)
+
+        if not admin_ids:
+            logger.warning("Нет администраторов для уведомления")
+            return
+
+        logger.info(
+            f"Отправка уведомления {len(admin_ids)} администраторам: {admin_ids}"
+        )
+
+        if not isinstance(bot, Bot):
+            raise InvalidBotError("Не удалось получить экземпляр Bot")
+
+        tasks = [
+            bot.send_message(chat_id=admin_id, text=text, disable_notification=False)
+            for admin_id in admin_ids
+        ]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for admin_id, res in zip(admin_ids, results, strict=False):
+            if isinstance(res, Exception):
+                logger.error(f"Ошибка при отправке админу {admin_id}: {res}")

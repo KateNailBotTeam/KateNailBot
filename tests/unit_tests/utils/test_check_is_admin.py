@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.utils.check_is_admin import check_is_admin
+from src.utils.get_admins_ids import check_is_admin
 
 
 @pytest.mark.asyncio

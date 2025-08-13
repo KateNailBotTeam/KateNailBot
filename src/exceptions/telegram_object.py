@@ -33,3 +33,14 @@ class InvalidUserError(Exception):
 
     def __str__(self) -> str:
         return f"Ошибка Message: {self.message}"
+
+
+class InvalidBotError(Exception):
+    """Исключение при получении экземпляра бота"""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self) -> str:
+        return f"Ошибка Bot: {self.message}"

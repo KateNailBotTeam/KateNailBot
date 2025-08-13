@@ -1,14 +1,14 @@
 import logging
 from datetime import datetime
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import BookingError
-from src.exceptions.telegram_object import InvalidCallbackError
+from src.exceptions.telegram_object import InvalidBotError, InvalidCallbackError
 from src.keyboards.book import create_booking_list_kb, create_confirm_cancel_booking_kb
 from src.keyboards.calendar import (
     create_calendar_for_available_dates,
@@ -132,6 +132,22 @@ async def finish_booking(
         visit_time=visit_time,
         user_telegram_id=user_telegram_id,
         schedule_settings=schedule_settings,
+    )
+
+    if not isinstance(callback.bot, Bot):
+        raise InvalidBotError("Не удалось получить экземпляр Bot")
+
+    await schedule_service.notify_admins(
+        session=session,
+        bot=callback.bot,
+        text=(
+            f"📅 Новое бронирование!\n"
+            f"Пользователь: {callback.from_user.full_name} "
+            f"(@{callback.from_user.username})\n"
+            f"Телеграм id: {callback.from_user.id}\n"
+            f"Дата: {visit_date.strftime('%d.%m.%Y')}\n"
+            f"Время: {visit_time.strftime('%H:%M')}"
+        ),
     )
 
     await callback.message.edit_text(
@@ -282,6 +298,22 @@ async def cancel_booking(
             session=session,
             user_telegram_id=user_telegram_id,
             datetime_to_cancel=datetime_to_cancel,
+        )
+
+        if not isinstance(callback.bot, Bot):
+            raise InvalidBotError("Не удалось получить экземпляр Bot")
+
+        await schedule_service.notify_admins(
+            session=session,
+            bot=callback.bot,
+            text=(
+                f"✖️ Отмена бронирования!\n"
+                f"Пользователь: {callback.from_user.full_name} "
+                f"(@{callback.from_user.username})\n"
+                f"Телеграм id: {callback.from_user.id}\n"
+                f"Дата: {datetime_to_cancel.strftime('%d.%m.%Y')}\n"
+                f"Время: {datetime_to_cancel.strftime('%H:%M')}"
+            ),
         )
 
         await callback.message.edit_text(

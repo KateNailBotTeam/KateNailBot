@@ -1,5 +1,6 @@
 # ruff: noqa: ARG001
 import asyncio
+from collections.abc import AsyncGenerator
 from datetime import date
 
 import pytest
@@ -32,7 +33,7 @@ async def prepare_database():
 
 
 @pytest.fixture
-async def session(prepare_database) -> AsyncSession:
+async def session(prepare_database) -> AsyncGenerator:
     async with session_factory() as session:
         yield session
 

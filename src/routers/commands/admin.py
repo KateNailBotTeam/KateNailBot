@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.telegram_object import InvalidMessageError, InvalidUserError
 from src.keyboards.admin import create_admin_keyboard
-from src.utils.check_is_admin import check_is_admin
+from src.utils.get_admins_ids import get_admin_ids
 
 router = Router(name=__name__)
 
@@ -20,7 +20,7 @@ async def admin_panel(
     if not isinstance(message.from_user, User):
         raise InvalidUserError("ошибка типа телеграм User")
 
-    if not await check_is_admin(telegram_id=message.from_user.id, session=session):
+    if message.from_user.id not in await get_admin_ids(session):
         await message.answer(text="⛔ У вас нет доступа, так как вы не админ")
         return
 
