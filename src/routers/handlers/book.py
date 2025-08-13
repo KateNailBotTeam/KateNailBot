@@ -126,9 +126,13 @@ async def finish_booking(
         logger.warning("Телеграм id пользователя не найден.")
         raise BookingError("Телеграм id пользователя не найден.")
 
+    if not isinstance(callback.bot, Bot):
+        raise InvalidBotError("Не удалось получить экземпляр Bot")
+
     visit_date = datetime.strptime(visit_date_str, "%Y_%m_%d").date()
 
     new_slot = await schedule_service.create_busy_slot(
+        bot=callback.bot,
         session=session,
         visit_date=visit_date,
         visit_time=visit_time,
@@ -136,8 +140,14 @@ async def finish_booking(
         schedule_settings=schedule_settings,
     )
 
-    if not isinstance(callback.bot, Bot):
-        raise InvalidBotError("Не удалось получить экземпляр Bot")
+    if new_slot is None:
+        await callback.message.edit_text(
+            text="⚠️ Вы достигли лимита бронирований или слот занят. "
+            "Выберите другое время или отмените предыдущую запись.",
+            parse_mode=ParseMode.HTML,
+        )
+        await state.clear()
+        return
 
     await schedule_service.notify_admins(
         session=session,

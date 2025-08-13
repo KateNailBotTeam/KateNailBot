@@ -3,8 +3,9 @@ import logging
 from datetime import date, datetime, time, timedelta
 
 from aiogram import Bot
+from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardMarkup
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import BookingError
@@ -21,6 +22,37 @@ logger = logging.getLogger(__name__)
 class ScheduleService(BaseService[Schedule]):
     def __init__(self) -> None:
         super().__init__(Schedule)
+
+    @staticmethod
+    async def _check_user_booking_limit(
+        session: AsyncSession,
+        user_telegram_id: int,
+        max_user_bookings: int | None = 3,
+    ) -> int:
+        """
+        Проверяет количество будущих бронирований пользователя.
+        Если max_user_bookings is None — ограничение отключено.
+        Возвращает True если бронирований меньше чем max_user_bookings.
+        Бросает False, если достигнут лимит.
+        """
+        if max_user_bookings is None:
+            return True
+
+        stmt = (
+            select(func.count())
+            .select_from(Schedule)
+            .where(
+                and_(
+                    Schedule.user_telegram_id == user_telegram_id,
+                    Schedule.is_booked,
+                    Schedule.visit_datetime > datetime.now(),
+                )
+            )
+        )
+        result = await session.execute(stmt)
+        current_count = int(result.scalar_one() or 0)
+
+        return current_count >= max_user_bookings
 
     @staticmethod
     def is_working_day(
@@ -154,11 +186,13 @@ class ScheduleService(BaseService[Schedule]):
     async def create_busy_slot(
         self,
         session: AsyncSession,
+        bot: Bot,
         visit_date: date,
         visit_time: time,
         user_telegram_id: int,
         schedule_settings: ScheduleSettings,
-    ) -> Schedule:
+        max_user_bookings: int = 3,
+    ) -> Schedule | None:
         """Создаёт занятый слот в расписании"""
         visit_datetime = datetime.combine(visit_date, visit_time)
 
@@ -167,6 +201,17 @@ class ScheduleService(BaseService[Schedule]):
         ):
             logger.warning("Слот уже занят: %s %s", visit_date, visit_time)
             raise BookingError("Это время уже занято")
+
+        allowed = await self._check_user_booking_limit(
+            session, user_telegram_id, max_user_bookings
+        )
+        if not allowed:
+            await bot.send_message(
+                chat_id=user_telegram_id,
+                text=f"⚠️ Достигнут лимит бронирований ({max_user_bookings})."
+                f" Отмените предыдущую запись, чтобы создать новую.",
+            )
+            return None
 
         new_slot = Schedule(
             visit_datetime=visit_datetime,
@@ -267,6 +312,7 @@ class ScheduleService(BaseService[Schedule]):
                 text=text,
                 disable_notification=False,
                 reply_markup=reply_markup,
+                parse_mode=ParseMode.HTML,
             )
             for admin_id in admin_ids
         ]
