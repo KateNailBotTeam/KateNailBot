@@ -19,6 +19,12 @@ class UserService(BaseService[User]):
 
     @classmethod
     def check_valid_phone(cls, phone: str) -> None:
+        """
+        Проверяет валидность номера телефона.
+
+        Raises:
+            RegistrationError: Если номер не соответствует формату
+        """
         if not re.fullmatch(cls.PHONE_REGEX, phone):
             logger.warning("Invalid phone format: %s", phone)
             raise RegistrationError("Неверный формат номера. Используйте +7XXXXXXXXXX.")

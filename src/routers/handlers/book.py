@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.booking import BookingError
 from src.exceptions.telegram_object import InvalidBotError, InvalidCallbackError
+from src.keyboards.admin import create_status_update_keyboard
 from src.keyboards.book import create_booking_list_kb, create_confirm_cancel_booking_kb
 from src.keyboards.calendar import (
     create_calendar_for_available_dates,
@@ -18,6 +19,7 @@ from src.models.schedule_settings import ScheduleSettings
 from src.services.schedule import ScheduleService
 from src.states.cancel_booking import CancelBooking
 from src.states.choose_visit_datetime import ChooseVisitDatetime
+from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 
 router = Router(name=__name__)
 logger = logging.getLogger(__name__)
@@ -126,7 +128,7 @@ async def finish_booking(
 
     visit_date = datetime.strptime(visit_date_str, "%Y_%m_%d").date()
 
-    await schedule_service.create_busy_slot(
+    new_slot = await schedule_service.create_busy_slot(
         session=session,
         visit_date=visit_date,
         visit_time=visit_time,
@@ -141,19 +143,23 @@ async def finish_booking(
         session=session,
         bot=callback.bot,
         text=(
-            f"📅 Новое бронирование!\n"
+            f"📅 <b>Новое бронирование!</b>\n"
             f"Пользователь: {callback.from_user.full_name} "
             f"(@{callback.from_user.username})\n"
             f"Телеграм id: {callback.from_user.id}\n"
             f"Дата: {visit_date.strftime('%d.%m.%Y')}\n"
             f"Время: {visit_time.strftime('%H:%M')}"
         ),
+        reply_markup=create_status_update_keyboard(
+            schedule_id=new_slot.id, telegram_id=new_slot.user_telegram_id
+        ),
     )
 
     await callback.message.edit_text(
-        text=f"✅ Вы успешно записаны на"
+        text=f"✅ Вы записаны на"
         f" <b>{visit_date.strftime('%d.%m.%Y')}</b>,"
-        f" время <b>{visit_time.strftime('%H:%M')}</b>",
+        f" время <b>{visit_time.strftime('%H:%M')}</b>.\n"
+        f"Ожидайте подтверждения записи администратором",
         parse_mode=ParseMode.HTML,
     )
     logger.info(
@@ -191,12 +197,15 @@ async def my_bookings(
         return
 
     message_text = [
-        "🌸 <b>Ваши ближайшие записи</b> 🌸\n",
+        "🌸 <b>Ваши записи</b> 🌸\n",
         "————————————————",
         *[
             f"\n<b>📌 Запись №{index}</b>\n"
-            f"🗓 <i>Дата:</i> <b>{schedule.strftime('%d.%m.%Y')}</b>\n"
-            f"⏰ <i>Время:</i> <code>{schedule.strftime('%H:%M')}</code>\n"
+            f"🗓 <i>Дата:</i> <b>{schedule.visit_datetime.strftime('%d.%m.%Y')}</b>\n"
+            f"⏰ <i>Время:</i> <code>{schedule.visit_datetime.strftime('%H:%M')}"
+            f"</code>\n"
+            f"🗓 <i>Статус:</i> "
+            f"<b>{APPOINTMENT_TYPE_STATUS.get(schedule.is_approved)}</b>\n"
             f"————————————————"
             for index, schedule in enumerate(schedules, 1)
         ],
@@ -234,10 +243,11 @@ async def choose_date_for_cancel_booking(
     await state.set_state(CancelBooking.waiting_for_choose_datetime)
     await state.update_data(user_telegram_id=user_telegram_id)
 
+    schedules_datetime = [schedule.visit_datetime for schedule in schedules]
     await callback.message.edit_text(
         text="<b>Выберите запись для отмены:</b>",
         parse_mode=ParseMode.HTML,
-        reply_markup=create_booking_list_kb(schedules=schedules),
+        reply_markup=create_booking_list_kb(schedules=schedules_datetime),
     )
 
 

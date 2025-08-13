@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.registration import RegistrationError
-from src.exceptions.telegram_object import InvalidCallbackError
+from src.exceptions.telegram_object import InvalidCallbackError, InvalidMessageError
 from src.keyboards.start import ask_about_phone_kb
 from src.models import User
 from src.services.user import UserService
@@ -88,13 +88,21 @@ async def save_phone(
     user_service: UserService,
 ) -> None:
     logger.info("Получен номер телефона от пользователя: %s", message.text)
+
+    if not isinstance(message.text, str):
+        logger.warning(
+            "Телефон указан не в том формате (Тип: %s, Телефон: %s)."
+            " Он должен являться строкой.",
+            type(message.text),
+            message.text,
+        )
+        raise InvalidMessageError("callback.message должен быть объектом Message")
+
+    user_service.check_valid_phone(message.text)
     await state.update_data(phone=message.text)
+
     data = await state.get_data()
-    try:
-        await finish_registration(message, data, state, session, user_service)
-    except RegistrationError as e:
-        logger.exception("Ошибка регистрации: %s", e.message)
-        await message.answer("Произошла ошибка при регистрации")
+    await finish_registration(message, data, state, session, user_service)
 
 
 async def finish_registration(
@@ -105,46 +113,32 @@ async def finish_registration(
     user_service: UserService,
 ) -> None:
     logger.debug("Начало завершения регистрации")
-
     telegram_id = data.get("telegram_id")
     first_name = data.get("first_name")
     phone = data.get("phone")
     user_schema_dict = data.get("user_schema_dict")
 
     if not isinstance(telegram_id, int):
-        logger.error("Некорректный telegram_id: %s", telegram_id)
         raise RegistrationError("Ошибка в telegram id")
-
     if not isinstance(first_name, str) or not first_name:
-        logger.error("Некорректное имя: %s", first_name)
         raise RegistrationError("Ошибка в имени пользователя")
-
     if not isinstance(user_schema_dict, dict):
-        logger.error("Некорректные данные пользователя: %s", type(user_schema_dict))
         raise RegistrationError("Ошибка в получении пользователя из данных состояния")
 
     user = User(**user_schema_dict)
-    data = {}
+    update_data = {}
 
     if user.first_name != first_name:
-        data["first_name"] = first_name
-        logger.debug("Обновление имени на: %s", first_name)
-
+        update_data["first_name"] = first_name
     if phone and user.phone != phone:
-        data["phone"] = phone
-        logger.debug("Обновление телефона на: %s", phone)
+        update_data["phone"] = phone
 
     updated_user = await user_service.update(
-        session=session, obj_id=user.id, new_data=data
+        session=session, obj_id=user.id, new_data=update_data
     )
 
     if not updated_user:
-        logger.error(
-            "Не удалось обновить несуществующего пользователя с id: %s", user.id
-        )
         raise RegistrationError("Невозможно обновить несуществующего пользователя")
-
-    logger.info("Успешно обновлен пользователь: %s", updated_user.id)
 
     text = (
         f"Вы зарегистрированы!\nИмя: {updated_user.first_name}\n"
@@ -157,5 +151,5 @@ async def finish_registration(
     elif isinstance(obj, Message):
         await obj.answer(text)
 
-    await state.clear()
     logger.info("Процесс регистрации успешно завершен")
+    await state.clear()

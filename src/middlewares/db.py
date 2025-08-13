@@ -3,6 +3,7 @@ from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.types.base import TelegramObject
+from sqlalchemy.exc import SQLAlchemyError
 
 from database.database import session_factory
 
@@ -19,7 +20,7 @@ class DatabaseMiddleware(BaseMiddleware):
                 data["session"] = session
                 result = await handler(event, data)
                 await session.commit()
-            except Exception:
+            except SQLAlchemyError:
                 await session.rollback()
                 raise
             else:

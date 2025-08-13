@@ -86,7 +86,10 @@ async def on_schedule_click(
 
 @router.callback_query(F.data.regexp(r"^(accept|reject|pending)_(\d+)$"))
 async def on_status_change(
-    callback: CallbackQuery, session: AsyncSession, admin_service: AdminService
+    callback: CallbackQuery,
+    session: AsyncSession,
+    admin_service: AdminService,
+    bot: Bot,
 ) -> None:
     logger.info(
         "Пользователь %s изменяет статус: %s", callback.from_user.id, callback.data
@@ -106,7 +109,7 @@ async def on_status_change(
     new_status = status_map[action]
 
     await admin_service.set_booking_approval(
-        session=session, schedule_id=schedule_id, approved=new_status
+        session=session, schedule_id=schedule_id, approved=new_status, bot=bot
     )
 
     await callback.answer(

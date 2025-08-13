@@ -100,7 +100,7 @@ async def test_get_all_bookings_filters_and_orders(
 
 @pytest.mark.parametrize("approved", [True, False, None])
 @pytest.mark.asyncio
-async def test_set_booking_approval_updates(
+async def test_set_booking_approval_updates_and_notifies(
     session: AsyncSession, approved: bool | None
 ):
     visit_dt = datetime(2025, 6, 1, 9, 30)
@@ -108,15 +108,23 @@ async def test_set_booking_approval_updates(
         visit_datetime=visit_dt,
         visit_duration=30,
         is_booked=True,
-        user_telegram_id=None,
+        user_telegram_id=123456789,
         is_approved=None,
     )
     session.add(schedule)
     await session.commit()
 
+    class BotStub:
+        def __init__(self):
+            self.calls: list[dict] = []
+
+        async def send_message(self, chat_id: int, text: str):
+            self.calls.append({"chat_id": chat_id, "text": text})
+
+    bot = BotStub()
     service = AdminService()
     updated = await service.set_booking_approval(
-        session=session, schedule_id=schedule.id, approved=approved
+        session=session, schedule_id=schedule.id, approved=approved, bot=bot
     )
 
     assert updated is not None
@@ -126,6 +134,11 @@ async def test_set_booking_approval_updates(
     refreshed = await session.get(Schedule, schedule.id)
     assert refreshed is not None
     assert refreshed.is_approved is approved
+
+    # Notification should be sent when user_telegram_id exists
+    assert len(bot.calls) == 1
+    assert bot.calls[0]["chat_id"] == schedule.user_telegram_id
+    assert "Ваше бронирование обновлено" in bot.calls[0]["text"]
 
 
 def _daterange(d1: date, d2: date) -> Iterable[date]:

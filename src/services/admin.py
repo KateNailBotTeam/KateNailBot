@@ -3,14 +3,15 @@ import logging
 from datetime import date, datetime, timedelta
 
 from aiogram import Bot
+from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from sqlalchemy import and_, delete, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
+from src.exceptions.booking import BookingError
 from src.keyboards.calendar import WEEKDAYS
 from src.models import User
 from src.models.day_off import DaysOff
@@ -23,6 +24,15 @@ logger = logging.getLogger(__name__)
 
 
 class AdminService(BaseService[Schedule]):
+    """
+    Сервис для работы с административными функциями расписания и бронирования.
+
+    Позволяет:
+    - Получать и управлять бронированиями.
+    - Устанавливать рабочие и нерабочие дни.
+    - Отправлять сообщения пользователям от имени администратора.
+    """
+
     def __init__(self) -> None:
         super().__init__(Schedule)
 
@@ -31,6 +41,9 @@ class AdminService(BaseService[Schedule]):
         session: AsyncSession,
         booking_id: int,
     ) -> Schedule | None:
+        """
+        Получение одного бронирования по ID
+        """
         logger.debug("Получение бронирования id=%d", booking_id)
         stmt = (
             select(Schedule)
@@ -47,6 +60,9 @@ class AdminService(BaseService[Schedule]):
     async def get_all_bookings(
         session: AsyncSession,
     ) -> list[Schedule]:
+        """
+        Получение всех бронирований (не указаны прошлые бронирования)
+        """
         stmt = (
             select(Schedule)
             .options(joinedload(Schedule.user))
@@ -60,15 +76,61 @@ class AdminService(BaseService[Schedule]):
         return bookings
 
     async def set_booking_approval(
-        self, session: AsyncSession, schedule_id: int, approved: bool | None
+        self,
+        session: AsyncSession,
+        bot: Bot,
+        schedule_id: int,
+        approved: bool | None,
     ) -> Schedule | None:
+        """
+        Устанавливает статус подтверждения бронирования
+        и уведомляет пользователя об изменении статуса.
+        """
         updated_booking = await self.update(
             obj_id=schedule_id, session=session, new_data={"is_approved": approved}
         )
+
+        if not updated_booking:
+            logger.error(
+                "Не удалось обновить информацию в бронировании %s", schedule_id
+            )
+            raise BookingError(
+                f"Ошибка при обновлении статуса бронирования {schedule_id}"
+            )
+
         status = APPOINTMENT_TYPE_STATUS.get(approved)
         logger.info(
-            "Обновлено подтверждение записи id=%s на значение %s", schedule_id, status
+            "Обновлено подтверждение записи id=%s на значение %s",
+            schedule_id,
+            status,
         )
+
+        if updated_booking.user_telegram_id:
+            try:
+                visit_datetime_str = updated_booking.visit_datetime.strftime(
+                    "%d.%m.%y %H:%M"
+                )
+                text = (
+                    f"Ваша запись на <b>{visit_datetime_str}</b>\n "
+                    f"получила статус <b>{status}</b>"
+                )
+                await bot.send_message(
+                    chat_id=updated_booking.user_telegram_id,
+                    text=text,
+                    parse_mode=ParseMode.HTML,
+                )
+                logger.info(
+                    "Пользователь %s уведомлён об изменении статуса записи %s",
+                    updated_booking.user_telegram_id,
+                    schedule_id,
+                )
+            except Exception as e:
+                logger.warning(
+                    "Не удалось отправить уведомление пользователю %s: %s",
+                    updated_booking.user_telegram_id,
+                    e,
+                )
+
         return updated_booking
 
     @staticmethod
@@ -87,36 +149,29 @@ class AdminService(BaseService[Schedule]):
             )
             raise ValueError("first_day_off не может быть позже last_day_off")
 
-        try:
-            if is_work:
-                await session.execute(
-                    delete(DaysOff).where(DaysOff.day_off.between(first_day, last_day))
-                )
-                await session.commit()
-
-            else:
-                current_date = first_day
-                while current_date <= last_day:
-                    await session.execute(
-                        insert(DaysOff)
-                        .values(day_off=current_date)
-                        .on_conflict_do_nothing(index_elements=["day_off"])
-                    )
-                    current_date += timedelta(days=1)
-
-                await session.commit()
-
-            logger.info(
-                "%s дни с %s по %s обновлены.",
-                "Рабочие" if is_work else "Нерабочие",
-                first_day,
-                last_day,
+        if is_work:
+            await session.execute(
+                delete(DaysOff).where(DaysOff.day_off.between(first_day, last_day))
             )
+            await session.commit()
 
-        except SQLAlchemyError as e:
-            await session.rollback()
-            logger.exception("Ошибка при обновлении дней: %s", exc_info=e)
-            raise
+        else:
+            current_date = first_day
+            while current_date <= last_day:
+                await session.execute(
+                    insert(DaysOff)
+                    .values(day_off=current_date)
+                    .on_conflict_do_nothing(index_elements=["day_off"])
+                )
+                current_date += timedelta(days=1)
+            await session.commit()
+
+        logger.info(
+            "%s дни с %s по %s обновлены.",
+            "Рабочие" if is_work else "Нерабочие",
+            first_day,
+            last_day,
+        )
 
     @staticmethod
     async def toggle_working_day(

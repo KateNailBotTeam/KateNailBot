@@ -3,6 +3,7 @@ import logging
 from datetime import date, datetime, time, timedelta
 
 from aiogram import Bot
+from aiogram.types import InlineKeyboardMarkup
 from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -183,11 +184,11 @@ class ScheduleService(BaseService[Schedule]):
     @staticmethod
     async def show_user_schedules(
         session: AsyncSession, user_telegram_id: int
-    ) -> list[datetime]:
+    ) -> list[Schedule]:
         """Возвращает список будущих записей пользователя"""
         logger.debug("Получение записей для пользователя %d", user_telegram_id)
         stmt = (
-            select(Schedule.visit_datetime)
+            select(Schedule)
             .where(
                 and_(
                     Schedule.user_telegram_id == user_telegram_id,
@@ -245,6 +246,7 @@ class ScheduleService(BaseService[Schedule]):
         session: AsyncSession,
         bot: Bot,
         text: str,
+        reply_markup: InlineKeyboardMarkup | None = None,
     ) -> None:
         admin_ids = await get_admin_ids(session=session)
 
@@ -260,7 +262,12 @@ class ScheduleService(BaseService[Schedule]):
             raise InvalidBotError("Не удалось получить экземпляр Bot")
 
         tasks = [
-            bot.send_message(chat_id=admin_id, text=text, disable_notification=False)
+            bot.send_message(
+                chat_id=admin_id,
+                text=text,
+                disable_notification=False,
+                reply_markup=reply_markup,
+            )
             for admin_id in admin_ids
         ]
 
