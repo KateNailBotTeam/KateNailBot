@@ -134,6 +134,15 @@ class ScheduleService(BaseService[Schedule]):
         """Проверяет доступность слота для бронирования"""
         dt = datetime.combine(visit_date, visit_time)
 
+        # Проверка, что дата находится среди доступных дат
+        # (учитывает выходные и нерабочие дни)
+        available_dates = await self.get_available_dates(
+            session=session, schedule_settings=schedule_settings, check_days_off=True
+        )
+        if visit_date not in available_dates:
+            logger.warning("Дата %s недоступна для записи", visit_date)
+            raise BookingError("Выбранная дата недоступна для записи")
+
         stmt_day = select(DaysOff).where(DaysOff.day_off == visit_date)
         result = await session.execute(stmt_day)
         day_off = result.scalar_one_or_none()

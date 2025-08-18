@@ -1,9 +1,11 @@
 # ruff: noqa: ARG001
 import asyncio
 from collections.abc import AsyncGenerator
-from datetime import date
+from datetime import date, datetime, timedelta
+from unittest.mock import AsyncMock
 
 import pytest
+from aiogram import Bot
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,3 +108,21 @@ def time_slots(
     return schedule_service.get_time_slots(
         visit_date=visit_date, schedule_settings=schedule_settings
     )
+
+
+@pytest.fixture
+def mock_bot():
+    return AsyncMock(spec=Bot)
+
+
+@pytest.fixture
+def future_datetime():
+    return datetime.now() + timedelta(days=1)
+
+
+@pytest.fixture
+async def test_user(session: AsyncSession):
+    user = User(telegram_id=123456789, first_name="Test User", username="testuser")
+    session.add(user)
+    await session.commit()
+    return user

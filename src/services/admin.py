@@ -87,50 +87,35 @@ class AdminService(BaseService[Schedule]):
         и уведомляет пользователя об изменении статуса.
         """
         updated_booking = await self.update(
-            obj_id=schedule_id, session=session, new_data={"is_approved": approved}
+            session=session, obj_id=schedule_id, new_data={"is_approved": approved}
         )
+        status = APPOINTMENT_TYPE_STATUS.get(approved)
+        if updated_booking and updated_booking.user_telegram_id:
+            logger.info(
+                "Обновлено подтверждение записи id=%s на значение %s",
+                schedule_id,
+                status,
+            )
+            visit_datetime_str = updated_booking.visit_datetime.strftime(
+                "%d.%m.%y %H:%M"
+            )
+            text = (
+                f"Ваша запись на <b>{visit_datetime_str}</b>\n "
+                f"получила статус <b>{status}</b>"
+            )
+            await bot.send_message(
+                chat_id=updated_booking.user_telegram_id,
+                text=text,
+                parse_mode=ParseMode.HTML,
+            )
 
-        if not updated_booking:
+        else:
             logger.error(
                 "Не удалось обновить информацию в бронировании %s", schedule_id
             )
             raise BookingError(
                 f"Ошибка при обновлении статуса бронирования {schedule_id}"
             )
-
-        status = APPOINTMENT_TYPE_STATUS.get(approved)
-        logger.info(
-            "Обновлено подтверждение записи id=%s на значение %s",
-            schedule_id,
-            status,
-        )
-
-        if updated_booking.user_telegram_id:
-            try:
-                visit_datetime_str = updated_booking.visit_datetime.strftime(
-                    "%d.%m.%y %H:%M"
-                )
-                text = (
-                    f"Ваша запись на <b>{visit_datetime_str}</b>\n "
-                    f"получила статус <b>{status}</b>"
-                )
-                await bot.send_message(
-                    chat_id=updated_booking.user_telegram_id,
-                    text=text,
-                    parse_mode=ParseMode.HTML,
-                )
-                logger.info(
-                    "Пользователь %s уведомлён об изменении статуса записи %s",
-                    updated_booking.user_telegram_id,
-                    schedule_id,
-                )
-            except Exception as e:
-                logger.warning(
-                    "Не удалось отправить уведомление пользователю %s: %s",
-                    updated_booking.user_telegram_id,
-                    e,
-                )
-
         return updated_booking
 
     @staticmethod

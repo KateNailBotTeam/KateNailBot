@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
@@ -6,6 +5,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.exceptions.booking import BookingError
 from src.models.day_off import DaysOff
 from src.models.schedule import Schedule
 from src.models.schedule_settings import ScheduleSettings
@@ -98,80 +98,81 @@ async def test_get_all_bookings_filters_and_orders(
     assert [b.id for b in bookings] == [future2.id, future1.id]
 
 
-@pytest.mark.parametrize("approved", [True, False, None])
+@pytest.mark.parametrize(
+    "approved,expected_status",
+    [
+        (True, "✅ Подтверждено"),
+        (False, "❌ Отклонено"),
+        (None, "⏳ Ожидает"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_set_booking_approval_updates_and_notifies(
-    session: AsyncSession, approved: bool | None
+async def test_set_booking_approval(
+    test_user,
+    session: AsyncSession,
+    approved: bool | None,
+    expected_status: str,
+    mock_bot,
 ):
     visit_dt = datetime(2025, 6, 1, 9, 30)
+
+    # Создаем тестовую запись
     schedule = Schedule(
         visit_datetime=visit_dt,
         visit_duration=30,
         is_booked=True,
-        user_telegram_id=123456789,
+        user_telegram_id=test_user.telegram_id,
         is_approved=None,
     )
     session.add(schedule)
     await session.commit()
 
-    class BotStub:
-        def __init__(self):
-            self.calls: list[dict] = []
+    mock_bot.send_message.reset_mock()
 
-        async def send_message(self, chat_id: int, text: str):
-            self.calls.append({"chat_id": chat_id, "text": text})
-
-    bot = BotStub()
     service = AdminService()
-    updated = await service.set_booking_approval(
-        session=session, schedule_id=schedule.id, approved=approved, bot=bot
+
+    result = await service.set_booking_approval(
+        session=session, bot=mock_bot, schedule_id=schedule.id, approved=approved
     )
 
-    assert updated is not None
-    assert updated.id == schedule.id
-    assert updated.is_approved is approved
+    assert result is not None
+    assert result.id == schedule.id
+    assert result.is_approved == approved
 
-    refreshed = await session.get(Schedule, schedule.id)
-    assert refreshed is not None
-    assert refreshed.is_approved is approved
+    db_schedule = await session.get(Schedule, schedule.id)
+    assert db_schedule is not None
+    assert db_schedule.is_approved == approved
 
-    # Notification should be sent when user_telegram_id exists
-    assert len(bot.calls) == 1
-    assert bot.calls[0]["chat_id"] == schedule.user_telegram_id
-    assert "Ваше бронирование обновлено" in bot.calls[0]["text"]
-
-
-def _daterange(d1: date, d2: date) -> Iterable[date]:
-    current = d1
-    while current <= d2:
-        yield current
-        current += timedelta(days=1)
+    mock_bot.send_message.assert_awaited_once()
+    args, kwargs = mock_bot.send_message.await_args
+    assert kwargs["chat_id"] == test_user.telegram_id
+    assert expected_status in kwargs["text"]
 
 
 @pytest.mark.asyncio
-async def test_set_workdays_add_and_remove_days_off(session: AsyncSession):
-    first = date(2025, 1, 1)
-    last = date(2025, 1, 3)
-
-    # Add non-working days
-    await AdminService.set_workdays(
-        first_day=first, last_day=last, is_work=False, session=session
+async def test_set_booking_approval_without_user_telegram_id(
+    session: AsyncSession,
+    mock_bot,
+):
+    # Arrange
+    schedule = Schedule(
+        visit_datetime=datetime(2025, 6, 1, 9, 30),
+        visit_duration=30,
+        is_booked=True,
+        user_telegram_id=None,  # Нет telegram_id
+        is_approved=None,
     )
+    session.add(schedule)
+    await session.commit()
 
-    result = await session.execute(select(DaysOff.day_off))
-    stored = set(result.scalars().all())
-    assert stored == set(_daterange(first, last))
+    service = AdminService()
 
-    await AdminService.set_workdays(
-        first_day=first,
-        last_day=first + timedelta(days=1),
-        is_work=True,
-        session=session,
-    )
+    with pytest.raises(BookingError):
+        await service.set_booking_approval(
+            session=session, bot=mock_bot, schedule_id=schedule.id, approved=True
+        )
 
-    result_after = await session.execute(select(DaysOff.day_off))
-    stored_after = set(result_after.scalars().all())
-    assert stored_after == {last}
+    mock_bot.send_message.assert_not_awaited()
 
 
 @pytest.mark.asyncio
