@@ -19,7 +19,7 @@ async def main() -> None:
 
     redis = Redis(
         host=settings.REDIS_HOST,
-        password=settings.REDIS_PASSWORD,
+        password=None,
         port=settings.REDIS_PORT,
         db=settings.REDIS_DATABASE,
         decode_responses=True,
@@ -40,6 +40,7 @@ async def main() -> None:
         handlers=[logging.StreamHandler()],
     )
 
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
     await bot.set_my_commands(commands=commands)
 
