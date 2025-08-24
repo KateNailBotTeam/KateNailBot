@@ -19,7 +19,7 @@ async def main() -> None:
 
     redis = Redis(
         host=settings.REDIS_HOST,
-        password=None,
+        password=settings.REDIS_PASSWORD,
         port=settings.REDIS_PORT,
         db=settings.REDIS_DATABASE,
         decode_responses=True,

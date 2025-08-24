@@ -4,7 +4,7 @@ from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, TelegramObject
+from aiogram.types import CallbackQuery, Message, TelegramObject, Update
 
 from src.exceptions import RegistrationError
 from src.exceptions.booking import BookingError
@@ -28,36 +28,52 @@ class ErrorHandlerMiddleware(BaseMiddleware):
     ) -> Any:
         try:
             return await handler(event, data)
+
+        except RegistrationError as e:
+            logger.warning("Registration error: %s", str(e))
+            await self._respond_and_cleanup(
+                event, data, f"⚠️ Ошибка регистрации: {e}", clear_state=False
+            )
+
         except (InvalidMessageError, InvalidCallbackError) as e:
             logger.warning("Validation error: %s", str(e))
             await self._respond_and_cleanup(event, data, f"⚠️ Ошибка запроса: {e}")
-        except (InvalidUserError, RegistrationError) as e:
+
+        except InvalidUserError as e:
             logger.warning("User error: %s", str(e))
             await self._respond_and_cleanup(event, data, f"⚠️ Ошибка пользователя: {e}")
+
         except BookingError as e:
             logger.exception("Booking error")
             await self._respond_and_cleanup(event, data, f"⚠️ Ошибка бронирования: {e}")
+
         except (InvalidBotError, TokenNotFoundError) as e:
             logger.critical("Bot critical error: %s", str(e))
             await self._respond_and_cleanup(
                 event, data, "⚠️ Произошла внутренняя ошибка бота"
             )
+
         except Exception:
             logger.exception("Unexpected error")
             await self._respond_and_cleanup(
                 event, data, "⚠️ Произошла непредвиденная ошибка"
             )
+
         return None
 
     @staticmethod
     async def _respond_and_cleanup(
-        event: TelegramObject, data: dict[str, Any], message: str
+        event: TelegramObject,
+        data: dict[str, Any],
+        message: str,
+        clear_state: bool = True,
     ) -> None:
-        """Основная функция — вызывает отдельные шаги"""
+        """Отправка уведомления и очистка состояния (по умолчанию)"""
         try:
             await ErrorHandlerMiddleware._send_message(event, data, message)
             await ErrorHandlerMiddleware._remove_keyboard(event)
-            await ErrorHandlerMiddleware._clear_state(data)
+            if clear_state:
+                await ErrorHandlerMiddleware._clear_state(data)
         except Exception:
             logger.exception("Ошибка при уведомлении пользователя и очистке состояния")
 
@@ -69,21 +85,23 @@ class ErrorHandlerMiddleware(BaseMiddleware):
         try:
             if isinstance(event, CallbackQuery):
                 await event.answer(message, show_alert=True)
-                logger.debug("Alert отправлен пользователю через CallbackQuery")
             elif isinstance(event, Message):
                 await event.answer(message)
-                logger.debug("Сообщение отправлено пользователю через Message.answer")
+            elif isinstance(event, Update):
+                # Извлекаем пользователя из Update
+                user_id = None
+                if event.message and event.message.from_user:
+                    user_id = event.message.from_user.id
+                elif event.callback_query and event.callback_query.from_user:
+                    user_id = event.callback_query.from_user.id
+
+                if user_id and bot:
+                    await bot.send_message(chat_id=user_id, text=message)
+                    logger.debug("Fallback сообщение отправлено через bot.send_message")
             else:
-                logger.warning(
-                    "Неизвестный тип события: %s. Отправляю fallback", type(event)
-                )
-                if bot and hasattr(event, "from_user") and event.from_user:
-                    await bot.send_message(chat_id=event.from_user.id, text=message)
+                logger.warning("Неизвестный тип события: %s", type(event))
         except Exception as e:
             logger.warning("Не удалось отправить сообщение пользователю: %s", e)
-            if bot and hasattr(event, "from_user") and event.from_user:
-                await bot.send_message(chat_id=event.from_user.id, text=message)
-                logger.debug("Fallback сообщение отправлено через bot.send_message")
 
     @staticmethod
     async def _remove_keyboard(event: TelegramObject) -> None:
