@@ -246,3 +246,8 @@ class AdminService(BaseService[Schedule]):
             summary_text += "\n⚠️ Ошибки по пользователям:\n" + errors_details
 
         return summary_text
+
+    @staticmethod
+    def write_new_info_text(text: str) -> None:
+        with open("src/texts/info_text.txt", "w", encoding="utf-8") as file:
+            file.write(text)

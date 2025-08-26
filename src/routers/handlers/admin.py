@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions.telegram_object import InvalidCallbackError, InvalidMessageError
 from src.keyboards.admin import (
+    confirm_change_info_text_keyboard,
     create_all_bookings_keyboard,
     create_status_update_keyboard,
     create_workday_selection_keyboard,
@@ -19,6 +20,7 @@ from src.models import ScheduleSettings
 from src.services.admin import AdminService
 from src.services.schedule import ScheduleService
 from src.states.broadcast_message import BroadcastMessage
+from src.states.change_info import ChangeInfo
 from src.states.days import Days
 from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 
@@ -352,3 +354,42 @@ async def send_message_from_admin(
     )
     await message.answer(sending_info)
     await state.clear()
+
+
+@router.callback_query(F.data == "change_info_text")
+async def get_text_to_change_info(callback: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    await callback.message.edit_text(
+        "<b>Введите текст</b>, который будет отображаться при нажатии на /info:",
+        parse_mode=ParseMode.HTML,
+    )
+    await state.set_state(ChangeInfo.get_text)
+
+
+@router.message(ChangeInfo.get_text)
+async def confirm_changes_info_text(message: Message, state: FSMContext) -> None:
+    if not isinstance(message, Message):
+        raise InvalidMessageError()
+
+    await state.update_data(info_text=message.text)
+    await message.answer(
+        f"⬇️<b>Вы изменили текст на:</b>⬇️\n{message.text}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=confirm_change_info_text_keyboard(),
+    )
+
+
+@router.callback_query(F.data == "confirm_change_info_text")
+async def change_info_text(
+    callback: CallbackQuery, state: FSMContext, admin_service: AdminService
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    data = await state.get_data()
+    info_text = data.get("info_text", "")
+    admin_service.write_new_info_text(text=info_text)
+    await state.clear()
+    await callback.message.edit_text("✅Данные успешно изменены")

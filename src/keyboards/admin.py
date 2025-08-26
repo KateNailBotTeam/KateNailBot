@@ -20,6 +20,11 @@ def create_admin_keyboard() -> InlineKeyboardMarkup:
         text="📤 Сделать рассылку по клиентам",
         callback_data="send_message_to_all_client",
     )
+
+    builder.button(
+        text=r"✍🏻 Изменить описание в /info", callback_data="change_info_text"
+    )
+
     builder.button(text="❌ ВЫХОД", callback_data="cancel")
 
     builder.adjust(1)
@@ -76,4 +81,15 @@ def create_status_update_keyboard(
     builder.button(text="🚪 ВЫХОД", callback_data="cancel")
 
     builder.adjust(3, 1, 1)
+    return builder.as_markup()
+
+
+def confirm_change_info_text_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    builder.button(text="Подтвердить", callback_data="confirm_change_info_text")
+    builder.button(text="Изменить", callback_data="change_info_text")
+    builder.button(text="🚪 ВЫХОД", callback_data="cancel")
+
+    builder.adjust(1)
     return builder.as_markup()
