@@ -28,7 +28,7 @@ class ScheduleService(BaseService[Schedule]):
         session: AsyncSession,
         user_telegram_id: int,
         max_user_bookings: int | None = 3,
-    ) -> int:
+    ) -> bool:
         """
         Проверяет количество будущих бронирований пользователя.
         Если max_user_bookings is None — ограничение отключено.
@@ -52,7 +52,7 @@ class ScheduleService(BaseService[Schedule]):
         result = await session.execute(stmt)
         current_count = int(result.scalar_one() or 0)
 
-        return current_count >= max_user_bookings
+        return current_count < max_user_bookings
 
     @staticmethod
     def is_working_day(
