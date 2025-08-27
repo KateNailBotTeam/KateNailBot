@@ -10,6 +10,10 @@ def create_admin_keyboard() -> InlineKeyboardMarkup:
 
     builder.button(text="📋 Управление записями", callback_data="show_all_bookings")
     builder.button(
+        text="🕑 Установить время начала и конца работы",
+        callback_data="set_working_time",
+    )
+    builder.button(
         text="🗓️ Управление рабочими/нерабочими днями", callback_data="set_first_day"
     )
     builder.button(

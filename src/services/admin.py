@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+import re
+from datetime import date, datetime, time, timedelta
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
@@ -271,3 +272,41 @@ class AdminService(BaseService[Schedule]):
 
         logger.info(" Временя сеанса изменено на %s минут", duration_minutes)
         return result.scalar_one()
+
+    @staticmethod
+    async def set_working_time(
+        session: AsyncSession, start_working_time: time, end_working_time: time
+    ) -> None:
+        stmt = update(ScheduleSettings).values(
+            start_working_time=start_working_time, end_working_time=end_working_time
+        )
+        await session.execute(stmt)
+        await session.commit()
+
+    @staticmethod
+    def validate_working_time(input_text: str) -> tuple[bool, str | tuple[time, time]]:
+        """
+        Валидирует ввод рабочего времени.
+        Возвращает (True, (start_time, end_time)) или (False, ошибка)
+        Принимает форматы: 08:30-15:30 и 08:30 - 15:30
+        """
+        time_pattern = re.compile(
+            r"^([01]\d|2[0-3]):([0-5]\d)\s*-\s*([01]\d|2[0-3]):([0-5]\d)$"
+        )
+
+        input_text = input_text.strip()
+        match = time_pattern.match(input_text)
+        if not match:
+            return False, "Неверный формат! Используйте формат <b>00:00 - 00:00</b>"
+
+        start_h, start_m, end_h, end_m = map(int, match.groups())
+        start_time = time(start_h, start_m)
+        end_time = time(end_h, end_m)
+
+        if start_time >= end_time:
+            return False, (
+                "Время начала работы не может быть позже или равно времени окончания.\n"
+                "Введите заново в формате <b>00:00 - 00:00</b>"
+            )
+
+        return True, (start_time, end_time)

@@ -23,6 +23,7 @@ from src.services.schedule import ScheduleService
 from src.states.broadcast_message import BroadcastMessage
 from src.states.change_info import ChangeInfo
 from src.states.days import Days
+from src.states.working_time import WorkingTimeStates
 from src.texts.status_appointments import APPOINTMENT_TYPE_STATUS
 
 router = Router(name=__name__)
@@ -423,4 +424,66 @@ async def set_session_duration(
     )
     await callback.message.edit_text(
         f"✅ Время длительности сеанса успешно изменено на {duration_session} минут"
+    )
+
+
+@router.callback_query(F.data == "set_working_time")
+async def get_working_time(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+
+    edit_message = await callback.message.edit_text(
+        "Введите время начала работы и время конца работы\n"
+        " в формате <b>00:00 - 00:00</b>\n"
+        "Для выхода нажмите /cancel",
+        parse_mode=ParseMode.HTML,
+    )
+    if isinstance(edit_message, Message):
+        await state.update_data(request_message_id=edit_message.message_id)
+
+    await state.set_state(WorkingTimeStates.waiting_for_time_range)
+
+
+@router.message(WorkingTimeStates.waiting_for_time_range)
+async def set_working_time_handler(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    admin_service: AdminService,
+) -> None:
+    if not isinstance(message.text, str):
+        raise InvalidMessageError("Неверный тип сообщения для установки времени работы")
+
+    is_valid, result = admin_service.validate_working_time(message.text)
+
+    if not is_valid:
+        await message.answer(
+            f"⚠️ {result}\nДля выхода нажмите /cancel", parse_mode=ParseMode.HTML
+        )
+        return
+
+    if not isinstance(result, tuple):
+        raise TypeError("Ожидаем кортеж с time")
+
+    start_time, end_time = result
+    await admin_service.set_working_time(
+        session=session, start_working_time=start_time, end_working_time=end_time
+    )
+
+    data = await state.get_data()
+    request_msg_id = data.get("request_message_id")
+
+    if not isinstance(message.bot, Bot):
+        raise TypeError("Невозможно получить экземпляр бота из сообщения")
+
+    if request_msg_id:
+        await message.bot.delete_message(message.chat.id, request_msg_id)
+
+    await state.clear()
+    await message.answer(
+        f"✅ Рабочее время успешно изменено на:\n<b>{message.text}</b>",
+        parse_mode=ParseMode.HTML,
     )
