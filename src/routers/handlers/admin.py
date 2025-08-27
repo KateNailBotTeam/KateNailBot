@@ -11,6 +11,7 @@ from src.exceptions.telegram_object import InvalidCallbackError, InvalidMessageE
 from src.keyboards.admin import (
     confirm_change_info_text_keyboard,
     create_all_bookings_keyboard,
+    create_duration_time_variants,
     create_status_update_keyboard,
     create_workday_selection_keyboard,
 )
@@ -393,3 +394,33 @@ async def change_info_text(
     admin_service.write_new_info_text(text=info_text)
     await state.clear()
     await callback.message.edit_text("✅Данные успешно изменены")
+
+
+@router.callback_query(F.data == "set_session_duration")
+async def choose_session_duration(
+    callback: CallbackQuery,
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+    await callback.message.edit_text(
+        "🗳️ Выберите из предложенных вариантов",
+        reply_markup=create_duration_time_variants(),
+    )
+
+
+@router.callback_query(F.data.startswith("duration_session_"))
+async def set_session_duration(
+    callback: CallbackQuery, session: AsyncSession, admin_service: AdminService
+) -> None:
+    if not isinstance(callback.message, Message):
+        raise InvalidMessageError()
+    if not isinstance(callback.data, str):
+        raise InvalidCallbackError("Неверно указано время для времени сеанса")
+    duration_session = int(callback.data.split("duration_session_")[-1])
+
+    await admin_service.set_session_duration(
+        session=session, duration_minutes=duration_session
+    )
+    await callback.message.edit_text(
+        f"✅ Время длительности сеанса успешно изменено на {duration_session} минут"
+    )

@@ -13,6 +13,10 @@ def create_admin_keyboard() -> InlineKeyboardMarkup:
         text="🗓️ Управление рабочими/нерабочими днями", callback_data="set_first_day"
     )
     builder.button(
+        text="⏳ Установить время длительности сеанса",
+        callback_data="set_session_duration",
+    )
+    builder.button(
         text="⚙️ Установить рабочие дни в неделе",
         callback_data="set_working_days_per_week",
     )
@@ -90,6 +94,20 @@ def confirm_change_info_text_keyboard() -> InlineKeyboardMarkup:
     builder.button(text="Подтвердить", callback_data="confirm_change_info_text")
     builder.button(text="Изменить", callback_data="change_info_text")
     builder.button(text="🚪 ВЫХОД", callback_data="cancel")
+
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def create_duration_time_variants() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    builder.button(text="15 минут", callback_data="duration_session_15")
+    builder.button(text="30 минут", callback_data="duration_session_30")
+    builder.button(text="1 час", callback_data="duration_session_60")
+    builder.button(text="2 часа", callback_data="duration_session_120")
+    builder.button(text="3 часа", callback_data="duration_session_180")
+    builder.button(text="4 часа", callback_data="duration_session_240")
 
     builder.adjust(1)
     return builder.as_markup()

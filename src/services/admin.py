@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -251,3 +251,23 @@ class AdminService(BaseService[Schedule]):
     def write_new_info_text(text: str) -> None:
         with open("src/texts/info_text.txt", "w", encoding="utf-8") as file:
             file.write(text)
+
+    @staticmethod
+    async def set_session_duration(
+        session: AsyncSession,
+        duration_minutes: int,
+    ) -> int:
+        logger.info(
+            "Попытка изменения времени сеанса администратором на %s минут",
+            duration_minutes,
+        )
+        stmt = (
+            update(ScheduleSettings)
+            .values(slot_duration_minutes=duration_minutes)
+            .returning(ScheduleSettings.slot_duration_minutes)
+        )
+        result = await session.execute(stmt)
+        await session.commit()
+
+        logger.info(" Временя сеанса изменено на %s минут", duration_minutes)
+        return result.scalar_one()

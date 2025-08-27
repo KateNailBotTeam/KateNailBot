@@ -12,8 +12,12 @@ if TYPE_CHECKING:
 
 
 class VisitDurationTimeEnum(Enum):
+    QUARTER_HOUR = 15
     HALF_HOUR = 30
     HOUR = 60
+    TWO_HOURS = 120
+    THREE_HOURS = 180
+    FOUR_HOURS = 240
 
 
 class Schedule(Base):
